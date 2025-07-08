@@ -31,7 +31,8 @@ export const useAuth = () => {
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
-      window.location.href = '/auth';
+      // Use window.location.href to go to home page instead of /auth
+      window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
     }

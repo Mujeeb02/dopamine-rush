@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Routing Test</title>
+</head>
+<body>
+    <h1>Routing Test</h1>
+    <p>This page tests if the redirects are working correctly.</p>
+    
+    <h2>Test Links:</h2>
+    <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/game">Game</a></li>
+        <li><a href="/leaderboard">Leaderboard</a></li>
+        <li><a href="/auth">Auth</a></li>
+        <li><a href="/profile">Profile</a></li>
+        <li><a href="/nonexistent">Non-existent page</a></li>
+    </ul>
+    
+    <script>
+        // Test if we can access the redirects file
+        fetch('/_redirects')
+            .then(response => {
+                if (response.ok) {
+                    console.log('✅ _redirects file is accessible');
+                } else {
+                    console.log('❌ _redirects file not found');
+                }
+            })
+            .catch(error => {
+                console.log('❌ Error accessing _redirects:', error);
+            });
+    </script>
+</body>
+</html> 

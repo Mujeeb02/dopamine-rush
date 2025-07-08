@@ -67,7 +67,7 @@ const Auth = () => {
           description: "Please check your email to verify your account.",
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
         description: error.message,

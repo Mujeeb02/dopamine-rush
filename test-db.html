@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Test</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div id="output" style="font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; min-height: 100vh;"></div>
+
+    <script>
+        const SUPABASE_URL = "https://jeghkvlxzmewjwihsvma.supabase.co";
+        const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZ2hrdmx4em1ld2p3aWhzdm1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5NDYyODksImV4cCI6MjA2NzUyMjI4OX0.93pQBY0vmeROY3gc3RFvO4gE_t8Qt52Xa81AsLRU78E";
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+        const output = document.getElementById('output');
+
+        function log(message) {
+            output.innerHTML += message + '<br>';
+            console.log(message);
+        }
+
+        async function testDatabase() {
+            log('🔍 Testing Database Connection...<br>');
+            
+            try {
+                // Test 1: Basic connection
+                log('1️⃣ Testing basic connection...');
+                const { data: testData, error: testError } = await supabase
+                    .from('game_scores')
+                    .select('count')
+                    .limit(1);
+                
+                if (testError) {
+                    log('❌ Connection failed: ' + JSON.stringify(testError));
+                    return;
+                }
+                log('✅ Connection successful<br>');
+                
+                // Test 2: Check game_scores table
+                log('2️⃣ Checking game_scores table...');
+                const { data: scores, error: scoresError } = await supabase
+                    .from('game_scores')
+                    .select('*')
+                    .limit(10);
+                
+                if (scoresError) {
+                    log('❌ Error fetching scores: ' + JSON.stringify(scoresError));
+                    return;
+                }
+                
+                log(`📊 Found ${scores.length} scores in database`);
+                if (scores.length > 0) {
+                    log('Sample score: ' + JSON.stringify(scores[0], null, 2));
+                } else {
+                    log('⚠️ No scores found - this might be the issue!');
+                }
+                log('<br>');
+                
+                // Test 3: Check profiles table
+                log('3️⃣ Checking profiles table...');
+                const { data: profiles, error: profilesError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .limit(5);
+                
+                if (profilesError) {
+                    log('❌ Error fetching profiles: ' + JSON.stringify(profilesError));
+                    return;
+                }
+                
+                log(`👥 Found ${profiles.length} profiles in database`);
+                if (profiles.length > 0) {
+                    log('Sample profile: ' + JSON.stringify(profiles[0], null, 2));
+                }
+                log('<br>');
+                
+                // Test 4: Test exact leaderboard query
+                log('4️⃣ Testing exact Leaderboard query...');
+                const { data: leaderboardData, error: leaderboardError } = await supabase
+                    .from('game_scores')
+                    .select('*')
+                    .order('score', { ascending: false });
+                
+                if (leaderboardError) {
+                    log('❌ Error in leaderboard query: ' + JSON.stringify(leaderboardError));
+                    return;
+                }
+                
+                log(`🏆 Leaderboard query returned ${leaderboardData.length} scores`);
+                if (leaderboardData.length > 0) {
+                    log('Top score: ' + JSON.stringify(leaderboardData[0], null, 2));
+                }
+                log('<br>');
+                
+                // Summary
+                log('🎯 Summary:');
+                if (scores.length === 0) {
+                    log('❌ No data in database - you need to play the game and score points first!');
+                    log('💡 Try playing the game and scoring some points, then check again.');
+                } else {
+                    log('✅ Database has data - the issue might be in the frontend code');
+                    log('💡 Check the browser console for any JavaScript errors');
+                }
+                
+            } catch (error) {
+                log('💥 Test failed: ' + error.message);
+            }
+        }
+
+        // Run the test when page loads
+        testDatabase();
+    </script>
+</body>
+</html> 

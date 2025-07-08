@@ -1,7 +1,7 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User, Trophy, Target, Zap, Calendar, TrendingUp } from "lucide-react";
+import { ArrowLeft, User, Trophy, Target, Zap, Calendar, TrendingUp, Brain, Eye, RotateCcw, MousePointer, Palette } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,9 +15,50 @@ interface UserStats {
   recentScores: Array<{
     score: number;
     streak: number;
+    game_mode: string;
     created_at: string;
   }>;
+  gameModeStats: {
+    [key: string]: {
+      highScore: number;
+      totalGames: number;
+      averageScore: number;
+    };
+  };
 }
+
+const GAME_MODES = {
+  classic: {
+    name: 'Classic Memory',
+    icon: Brain,
+    color: 'from-cyan-400 to-blue-400',
+  },
+  'freeze-frame': {
+    name: 'Freeze Frame',
+    icon: Eye,
+    color: 'from-purple-400 to-pink-400',
+  },
+  'reverse-sequence': {
+    name: 'Reverse Sequence',
+    icon: RotateCcw,
+    color: 'from-orange-400 to-red-400',
+  },
+  'quick-reflex': {
+    name: 'Quick Reflex',
+    icon: Target,
+    color: 'from-green-400 to-emerald-400',
+  },
+  'trail-tracker': {
+    name: 'Trail Tracker',
+    icon: MousePointer,
+    color: 'from-indigo-400 to-purple-400',
+  },
+  'palette-recall': {
+    name: 'Palette Recall',
+    icon: Palette,
+    color: 'from-yellow-400 to-orange-400',
+  }
+};
 
 const Profile = () => {
   const [userStats, setUserStats] = useState<UserStats>({
@@ -25,7 +66,8 @@ const Profile = () => {
     totalGames: 0,
     averageScore: 0,
     totalStreak: 0,
-    recentScores: []
+    recentScores: [],
+    gameModeStats: {}
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +130,7 @@ const Profile = () => {
       // Fetch user's game scores
       const { data: scores, error: scoresError } = await supabase
         .from('game_scores')
-        .select('score, streak, created_at')
+        .select('score, streak, game_mode, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -103,12 +145,32 @@ const Profile = () => {
         const scoreValues = scores.map(item => item.score);
         const streakValues = scores.map(item => item.streak);
         
+        // Calculate game mode statistics
+        const gameModeStats: { [key: string]: { highScore: number; totalGames: number; averageScore: number } } = {};
+        
+        scores.forEach(score => {
+          const mode = score.game_mode || 'classic';
+          if (!gameModeStats[mode]) {
+            gameModeStats[mode] = { highScore: 0, totalGames: 0, averageScore: 0 };
+          }
+          
+          gameModeStats[mode].totalGames += 1;
+          gameModeStats[mode].highScore = Math.max(gameModeStats[mode].highScore, score.score);
+        });
+        
+        // Calculate average scores for each game mode
+        Object.keys(gameModeStats).forEach(mode => {
+          const modeScores = scores.filter(s => (s.game_mode || 'classic') === mode).map(s => s.score);
+          gameModeStats[mode].averageScore = Math.round((modeScores.reduce((a, b) => a + b, 0) / modeScores.length) * 10) / 10;
+        });
+        
         setUserStats({
           highScore: Math.max(...scoreValues),
           totalGames: scores.length,
           averageScore: Math.round((scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length) * 10) / 10,
           totalStreak: streakValues.reduce((a, b) => a + b, 0),
-          recentScores: scores.slice(0, 5)
+          recentScores: scores.slice(0, 5),
+          gameModeStats
         });
       } else {
         console.log('No scores found for user');
@@ -117,7 +179,8 @@ const Profile = () => {
           totalGames: 0,
           averageScore: 0,
           totalStreak: 0,
-          recentScores: []
+          recentScores: [],
+          gameModeStats: {}
         });
       }
     } catch (error) {
@@ -126,6 +189,14 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getGameModeInfo = (gameMode: string) => {
+    return GAME_MODES[gameMode as keyof typeof GAME_MODES] || {
+      name: 'Unknown Game',
+      icon: Brain,
+      color: 'from-gray-400 to-gray-600',
+    };
   };
 
   if (authLoading) {
@@ -206,32 +277,32 @@ const Profile = () => {
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto"></div>
-              <p className="text-gray-400 mt-2">Loading your stats...</p>
+              <p className="text-gray-400 mt-2">Loading stats...</p>
             </div>
           ) : (
             <>
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Overall Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 }}
                   className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center"
                 >
-                  <Trophy className="w-8 h-8 mx-auto mb-3 text-yellow-400" />
-                  <div className="text-3xl font-bold text-yellow-400 mb-1">{userStats.highScore}</div>
-                  <div className="text-sm text-gray-400">High Score</div>
+                  <Trophy className="w-8 h-8 mx-auto mb-2 text-yellow-400" />
+                  <h3 className="text-2xl font-bold text-yellow-400">{userStats.highScore}</h3>
+                  <p className="text-gray-400 text-sm">High Score</p>
                 </motion.div>
 
                 <motion.div
-                  initial={{ opacity: 0, x: 20 }}
+                  initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.2 }}
                   className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center"
                 >
-                  <Target className="w-8 h-8 mx-auto mb-3 text-cyan-400" />
-                  <div className="text-3xl font-bold text-cyan-400 mb-1">{userStats.totalGames}</div>
-                  <div className="text-sm text-gray-400">Games Played</div>
+                  <Target className="w-8 h-8 mx-auto mb-2 text-cyan-400" />
+                  <h3 className="text-2xl font-bold text-cyan-400">{userStats.totalGames}</h3>
+                  <p className="text-gray-400 text-sm">Total Games</p>
                 </motion.div>
 
                 <motion.div
@@ -240,22 +311,66 @@ const Profile = () => {
                   transition={{ delay: 0.3 }}
                   className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center"
                 >
-                  <TrendingUp className="w-8 h-8 mx-auto mb-3 text-green-400" />
-                  <div className="text-3xl font-bold text-green-400 mb-1">{userStats.averageScore}</div>
-                  <div className="text-sm text-gray-400">Average Score</div>
+                  <TrendingUp className="w-8 h-8 mx-auto mb-2 text-green-400" />
+                  <h3 className="text-2xl font-bold text-green-400">{userStats.averageScore}</h3>
+                  <p className="text-gray-400 text-sm">Average Score</p>
                 </motion.div>
 
                 <motion.div
-                  initial={{ opacity: 0, x: 20 }}
+                  initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 }}
                   className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center"
                 >
-                  <Zap className="w-8 h-8 mx-auto mb-3 text-purple-400" />
-                  <div className="text-3xl font-bold text-purple-400 mb-1">{userStats.totalStreak}</div>
-                  <div className="text-sm text-gray-400">Total Streaks</div>
+                  <Zap className="w-8 h-8 mx-auto mb-2 text-purple-400" />
+                  <h3 className="text-2xl font-bold text-purple-400">{userStats.totalStreak}</h3>
+                  <p className="text-gray-400 text-sm">Total Streak</p>
                 </motion.div>
               </div>
+
+              {/* Game Mode Stats */}
+              {Object.keys(userStats.gameModeStats).length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="bg-white/10 backdrop-blur-sm rounded-xl p-6"
+                >
+                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-cyan-400" />
+                    Game Mode Statistics
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.entries(userStats.gameModeStats).map(([mode, stats]) => {
+                      const gameModeInfo = getGameModeInfo(mode);
+                      const GameModeIcon = gameModeInfo.icon;
+                      
+                      return (
+                        <div key={mode} className="bg-white/5 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <GameModeIcon className="w-5 h-5" />
+                            <h4 className="font-bold">{gameModeInfo.name}</h4>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">High Score:</span>
+                              <span className="text-yellow-400 font-bold">{stats.highScore}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Games Played:</span>
+                              <span className="text-cyan-400 font-bold">{stats.totalGames}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Average:</span>
+                              <span className="text-green-400 font-bold">{stats.averageScore}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
 
               {/* Recent Games */}
               {userStats.recentScores.length > 0 && (
@@ -270,19 +385,30 @@ const Profile = () => {
                     Recent Games
                   </h3>
                   <div className="space-y-3">
-                    {userStats.recentScores.map((game, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="text-lg font-bold text-cyan-400">{game.score}</div>
-                          <div className="text-sm text-gray-400">
-                            Streak: {game.streak}
+                    {userStats.recentScores.map((game, index) => {
+                      const gameModeInfo = getGameModeInfo(game.game_mode || 'classic');
+                      const GameModeIcon = gameModeInfo.icon;
+                      
+                      return (
+                        <div key={index} className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="text-lg font-bold text-cyan-400">{game.score}</div>
+                            <div className="flex items-center gap-2">
+                              <GameModeIcon className="w-4 h-4 text-gray-400" />
+                              <span className="text-sm text-gray-400">
+                                {gameModeInfo.name}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-400">
+                              Streak: {game.streak}
+                            </div>
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {new Date(game.created_at).toLocaleDateString()}
                           </div>
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {new Date(game.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </motion.div>
               )}
@@ -292,15 +418,15 @@ const Profile = () => {
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="bg-white/10 backdrop-blur-sm rounded-xl p-8 text-center"
+                  transition={{ delay: 0.6 }}
+                  className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center"
                 >
-                  <Trophy className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-xl font-bold mb-2">No games played yet!</h3>
-                  <p className="text-gray-400 mb-4">Start playing to see your stats here.</p>
-                  <Link to="/game">
-                    <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                      Play Your First Game
+                  <Trophy className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-xl font-bold text-gray-400 mb-2">No games played yet</h3>
+                  <p className="text-gray-500 mb-4">Start playing to see your statistics here!</p>
+                  <Link to="/">
+                    <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-2 font-bold rounded-full">
+                      Start Playing
                     </Button>
                   </Link>
                 </motion.div>

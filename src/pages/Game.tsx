@@ -1,15 +1,22 @@
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RotateCcw, Trophy, Zap, Target, Brain } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, RotateCcw, Trophy, Zap, Target, Brain, Eye, Palette, MousePointer, Play } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import GameGrid from "@/components/GameGrid";
 import ScoreBar from "@/components/ScoreBar";
 import LoginPopup from "@/components/LoginPopup";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
+// Import game mode components
+import FreezeFrame from "@/components/games/FreezeFrame";
+import QuickReflex from "@/components/games/QuickReflex";
+import ReverseSequence from "@/components/games/ReverseSequence";
+import TrailTracker from "@/components/games/TrailTracker";
+import PaletteRecall from "@/components/games/PaletteRecall";
 
 export type GameState = 'waiting' | 'showing' | 'question' | 'correct' | 'wrong' | 'gameOver';
 
@@ -19,6 +26,46 @@ export interface Card {
   name: string;
   position: number;
 }
+
+// Game mode configurations
+const GAME_MODES = {
+  classic: {
+    name: 'Classic Memory',
+    icon: Brain,
+    color: 'from-cyan-400 to-blue-400',
+    description: 'Remember the position of colored cards'
+  },
+  'freeze-frame': {
+    name: 'Freeze Frame',
+    icon: Eye,
+    color: 'from-purple-400 to-pink-400',
+    description: 'Recreate patterns from memory on a grid'
+  },
+  'reverse-sequence': {
+    name: 'Reverse Sequence',
+    icon: RotateCcw,
+    color: 'from-orange-400 to-red-400',
+    description: 'Input sequences in reverse order'
+  },
+  'quick-reflex': {
+    name: 'Quick Reflex',
+    icon: Target,
+    color: 'from-green-400 to-emerald-400',
+    description: 'Tap only when target color appears'
+  },
+  'trail-tracker': {
+    name: 'Trail Tracker',
+    icon: MousePointer,
+    color: 'from-indigo-400 to-purple-400',
+    description: 'Retrace moving card paths from memory'
+  },
+  'palette-recall': {
+    name: 'Palette Recall',
+    icon: Palette,
+    color: 'from-yellow-400 to-orange-400',
+    description: 'Identify subtle color differences'
+  }
+};
 
 // Particle component for effects
 const Particle = ({ x, y, color, delay }: { x: number; y: number; color: string; delay: number }) => (
@@ -66,6 +113,7 @@ const FloatingParticles = () => (
 );
 
 const Game = () => {
+  const { gameMode } = useParams<{ gameMode: string }>();
   const [gameState, setGameState] = useState<GameState>('waiting');
   const [cards, setCards] = useState<Card[]>([]);
   const [targetCard, setTargetCard] = useState<Card | null>(null);
@@ -82,6 +130,8 @@ const Game = () => {
 
   const colors = ['#7FDBFF', '#FFDC00', '#FF4136', '#B10DC9', '#2ECC40', '#FF851B', '#01FF70', '#F012BE'];
   const colorNames = ['Cyan', 'Yellow', 'Red', 'Purple', 'Green', 'Orange', 'Lime', 'Magenta'];
+
+  const currentGameMode = gameMode ? GAME_MODES[gameMode as keyof typeof GAME_MODES] || GAME_MODES.classic : null;
 
   const shuffleArray = <T,>(array: T[]): T[] => {
     const shuffled = [...array];
@@ -139,7 +189,7 @@ const Game = () => {
     if (!isAuthenticated || !user?.id || finalScore === 0) return;
 
     try {
-      console.log('Saving score:', { finalScore, finalStreak, userId: user.id });
+      console.log('Saving score:', { finalScore, finalStreak, userId: user.id, gameMode });
       
       // Ensure profile exists before saving score
       const { data: profile, error: profileError } = await supabase
@@ -170,7 +220,7 @@ const Game = () => {
           user_id: user.id,
           score: finalScore,
           streak: finalStreak,
-          game_mode: 'classic'
+          game_mode: gameMode || 'classic'
         });
 
       if (error) {
@@ -199,26 +249,31 @@ const Game = () => {
   };
 
   const startNewRound = useCallback(() => {
-    const newCards = generateCards(score);
-    setCards(newCards);
-    setGameState('showing');
-    
-    const memoryTime = getMemoryTime(newCards.length);
-    console.log(`Showing ${newCards.length} cards for ${memoryTime}ms`);
-    
-    // Animate title when starting new round
-    titleAnimation.start({
-      scale: [1, 1.1, 1],
-      rotate: [0, 2, -2, 0],
-      transition: { duration: 0.5 }
-    });
-    
-    setTimeout(() => {
-      const randomCard = newCards[Math.floor(Math.random() * newCards.length)];
-      setTargetCard(randomCard);
-      setGameState('question');
-    }, memoryTime);
-  }, [score, generateCards, titleAnimation]);
+    if (gameMode === 'classic') {
+      const newCards = generateCards(score);
+      setCards(newCards);
+      setGameState('showing');
+      
+      const memoryTime = getMemoryTime(newCards.length);
+      console.log(`Showing ${newCards.length} cards for ${memoryTime}ms`);
+      
+      // Animate title when starting new round
+      titleAnimation.start({
+        scale: [1, 1.1, 1],
+        rotate: [0, 2, -2, 0],
+        transition: { duration: 0.5 }
+      });
+      
+      setTimeout(() => {
+        const randomCard = newCards[Math.floor(Math.random() * newCards.length)];
+        setTargetCard(randomCard);
+        setGameState('question');
+      }, memoryTime);
+    } else if (gameMode) {
+      // For other game modes, just start the game
+      setGameState('showing');
+    }
+  }, [score, generateCards, titleAnimation, gameMode]);
 
   const handleCardClick = (clickedCard: Card) => {
     if (gameState !== 'question') return;
@@ -265,6 +320,45 @@ const Game = () => {
     }
   };
 
+  // Handle correct answers from other game modes
+  const handleCorrect = () => {
+    setGameState('correct');
+    setScore(prev => prev + 1);
+    setStreak(prev => prev + 1);
+    
+    // Trigger streak effect for streaks of 3 or more
+    if (streak + 1 >= 3) {
+      triggerStreakEffect();
+    }
+    
+    setTimeout(() => {
+      startNewRound();
+    }, 1500);
+  };
+
+  // Handle wrong answers from other game modes
+  const handleWrong = () => {
+    setGameState('wrong');
+    
+    // Only save score if it's greater than 0
+    if (score > 0) {
+      if (isAuthenticated) {
+        saveScore(score, streak);
+      } else {
+        // Show login popup for unauthenticated users with score > 0
+        setShowLoginPopup(true);
+      }
+    }
+    
+    if (score > highScore) {
+      setHighScore(score);
+    }
+    
+    setTimeout(() => {
+      setGameState('gameOver');
+    }, 2000);
+  };
+
   const resetGame = () => {
     setScore(0);
     setStreak(0);
@@ -275,17 +369,103 @@ const Game = () => {
   };
 
   useEffect(() => {
-    const saved = localStorage.getItem('dopamine-rush-high-score');
+    const saved = localStorage.getItem(`dopamine-rush-high-score-${gameMode || 'classic'}`);
     if (saved) {
       setHighScore(parseInt(saved));
     }
-  }, []);
+  }, [gameMode]);
 
   useEffect(() => {
     if (score > highScore) {
-      localStorage.setItem('dopamine-rush-high-score', score.toString());
+      localStorage.setItem(`dopamine-rush-high-score-${gameMode || 'classic'}`, score.toString());
     }
-  }, [score, highScore]);
+  }, [score, highScore, gameMode]);
+
+  // Render different game components based on game mode
+  const renderGameComponent = () => {
+    const gameStarted = gameState === 'showing' || gameState === 'question';
+    
+    switch (gameMode) {
+      case 'freeze-frame':
+        return <FreezeFrame score={score} onCorrect={handleCorrect} onWrong={handleWrong} gameStarted={gameStarted} />;
+      case 'quick-reflex':
+        return <QuickReflex score={score} onCorrect={handleCorrect} onWrong={handleWrong} gameStarted={gameStarted} />;
+      case 'reverse-sequence':
+        return <ReverseSequence score={score} onCorrect={handleCorrect} onWrong={handleWrong} gameStarted={gameStarted} />;
+      case 'trail-tracker':
+        return <TrailTracker score={score} onCorrect={handleCorrect} onWrong={handleWrong} gameStarted={gameStarted} />;
+      case 'palette-recall':
+        return <PaletteRecall score={score} onCorrect={handleCorrect} onWrong={handleWrong} gameStarted={gameStarted} />;
+      default:
+        return null; // Classic mode uses the existing GameGrid
+    }
+  };
+
+  // If no game mode is selected, show game mode selection
+  if (!gameMode) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 text-white relative overflow-hidden">
+        <FloatingParticles />
+        
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 relative z-10">
+          <Link to="/">
+            <Button variant="ghost" className="text-white hover:bg-white/10">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+          </Link>
+          
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+            Choose Your Game Mode
+          </h1>
+
+          <div className="w-20" />
+        </div>
+
+        {/* Game Mode Selection */}
+        <div className="container mx-auto px-6 py-8 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto"
+          >
+            {Object.entries(GAME_MODES).map(([modeId, mode]) => {
+              const ModeIcon = mode.icon;
+              return (
+                <motion.div
+                  key={modeId}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileHover={{ scale: 1.02, y: -5 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all duration-300"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`p-3 rounded-lg bg-gradient-to-r ${mode.color}`}>
+                      <ModeIcon className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                  
+                  <h3 className="text-xl font-bold mb-2">{mode.name}</h3>
+                  <p className="text-gray-400 mb-6 text-sm">{mode.description}</p>
+                  
+                  <Link to={`/game/${modeId}`}>
+                    <Button
+                      className={`w-full bg-gradient-to-r ${mode.color} hover:opacity-90 text-white font-bold`}
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Play {mode.name}
+                    </Button>
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 text-white relative overflow-hidden">
@@ -319,7 +499,7 @@ const Game = () => {
 
       {/* Header */}
       <div className="flex justify-between items-center p-6 relative z-10">
-        <Link to="/">
+        <Link to="/game">
           <Button variant="ghost" className="text-white hover:bg-white/10">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -331,9 +511,9 @@ const Game = () => {
           animate={titleAnimation}
         >
           <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent flex items-center justify-center gap-2">
-            <Brain className="w-6 h-6" />
-            Dopamine Rush
-            <Brain className="w-6 h-6" />
+            {currentGameMode && React.createElement(currentGameMode.icon, { className: "w-6 h-6" })}
+            {currentGameMode?.name}
+            {currentGameMode && React.createElement(currentGameMode.icon, { className: "w-6 h-6" })}
           </h1>
         </motion.div>
 
@@ -369,12 +549,16 @@ const Game = () => {
                 transition={{ duration: 2, repeat: Infinity }}
                 className="mb-8"
               >
-                <Brain className="w-24 h-24 mx-auto text-cyan-400" />
+                {currentGameMode && React.createElement(currentGameMode.icon, { className: "w-24 h-24 mx-auto text-cyan-400" })}
               </motion.div>
               
               <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
                 Ready to Challenge Your Brain?
               </h2>
+              
+              <p className="text-xl text-gray-300 mb-6">
+                {currentGameMode?.description}
+              </p>
               
               {!isAuthenticated && (
                 <motion.p 
@@ -393,7 +577,7 @@ const Game = () => {
                 <Button
                   onClick={startNewRound}
                   size="lg"
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 text-xl font-bold rounded-full shadow-lg"
+                  className={`bg-gradient-to-r ${currentGameMode?.color} hover:opacity-90 text-white px-8 py-4 text-xl font-bold rounded-full shadow-lg`}
                 >
                   <Zap className="w-6 h-6 mr-2" />
                   Start Game
@@ -402,7 +586,8 @@ const Game = () => {
             </motion.div>
           )}
 
-          {(gameState === 'showing' || gameState === 'question') && (
+          {/* Classic Game Mode */}
+          {gameMode === 'classic' && (gameState === 'showing' || gameState === 'question') && (
             <motion.div
               key="playing"
               initial={{ opacity: 0, scale: 0.9 }}
@@ -470,6 +655,19 @@ const Game = () => {
                 gameState={gameState} 
                 onCardClick={handleCardClick}
               />
+            </motion.div>
+          )}
+
+          {/* Other Game Modes */}
+          {gameMode !== 'classic' && (gameState === 'showing' || gameState === 'question') && (
+            <motion.div
+              key="playing"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="text-center"
+            >
+              {renderGameComponent()}
             </motion.div>
           )}
 
@@ -633,7 +831,7 @@ const Game = () => {
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                     <Button
                       onClick={resetGame}
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3 font-bold rounded-full w-full shadow-lg"
+                      className={`bg-gradient-to-r ${currentGameMode?.color} hover:opacity-90 text-white px-8 py-3 font-bold rounded-full w-full shadow-lg`}
                     >
                       <RotateCcw className="w-4 h-4 mr-2" />
                       Play Again

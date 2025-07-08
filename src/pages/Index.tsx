@@ -111,7 +111,7 @@ const Index = () => {
           variants={itemVariants}
           className="text-xl md:text-2xl mb-8 text-gray-300 max-w-2xl mx-auto"
         >
-          The memory game that's impossible to quit. One mistake resets everything. 
+          Six different memory games to challenge your brain. One mistake resets everything. 
           Can you handle the pressure?
         </motion.p>
 
@@ -157,7 +157,7 @@ const Index = () => {
           <motion.div variants={itemVariants} className="text-center p-6 rounded-xl bg-white/5 backdrop-blur-sm">
             <Brain className="w-12 h-12 mx-auto mb-4 text-cyan-400" />
             <h3 className="text-xl font-bold mb-2">Memory Challenge</h3>
-            <p className="text-gray-400">Test your memory with increasingly difficult patterns</p>
+            <p className="text-gray-400">Six different games to test various memory skills</p>
           </motion.div>
           
           <motion.div variants={itemVariants} className="text-center p-6 rounded-xl bg-white/5 backdrop-blur-sm">

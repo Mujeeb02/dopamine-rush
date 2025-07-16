@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Eye, RotateCcw, Check, X } from "lucide-react";
@@ -22,6 +22,7 @@ const FreezeFrame = ({ score, onCorrect, onWrong, gameStarted }: FreezeFrameProp
   const [userPattern, setUserPattern] = useState<GridCell[]>([]);
   const [gridSize, setGridSize] = useState(4);
   const [showTime, setShowTime] = useState(3000);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const generatePattern = useCallback((level: number) => {
     const size = Math.min(4 + Math.floor(level / 5), 6);
@@ -49,6 +50,12 @@ const FreezeFrame = ({ score, onCorrect, onWrong, gameStarted }: FreezeFrameProp
   }, []);
 
   const startNewRound = useCallback(() => {
+    // Clear any existing timeouts
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     const newPattern = generatePattern(score);
     setPattern(newPattern);
     setUserPattern(Array.from({ length: newPattern.length }, (_, i) => ({
@@ -83,20 +90,44 @@ const FreezeFrame = ({ score, onCorrect, onWrong, gameStarted }: FreezeFrameProp
     }
   };
 
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     if (gameState === 'showing') {
-      const timer = setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         setGameState('recreating');
       }, showTime);
-      return () => clearTimeout(timer);
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+      };
     }
   }, [gameState, showTime]);
 
   useEffect(() => {
     if (gameStarted) {
       startNewRound();
+    } else {
+      // Reset state when game is not started
+      cleanup();
+      setGameState('showing');
+      setPattern([]);
+      setUserPattern([]);
     }
-  }, [gameStarted, startNewRound]);
+  }, [gameStarted, startNewRound, cleanup]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return cleanup;
+  }, [cleanup]);
 
   if (!gameStarted) {
     return null;
@@ -121,7 +152,7 @@ const FreezeFrame = ({ score, onCorrect, onWrong, gameStarted }: FreezeFrameProp
               transition={{ duration: 1, repeat: Infinity }}
               className="text-2xl font-bold mb-4"
             >
-              Memorize the pattern... ({showTime / 1000}s)
+              Memorize the pattern... ({Math.round(showTime / 1000)}s)
             </motion.h2>
             <motion.div
               animate={{ rotate: [0, 360] }}

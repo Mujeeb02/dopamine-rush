@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Target, Zap, AlertTriangle } from "lucide-react";
@@ -18,6 +18,7 @@ const QuickReflex = ({ score, onCorrect, onWrong, gameStarted }: QuickReflexProp
   const [flashInterval, setFlashInterval] = useState(1000);
   const [sequence, setSequence] = useState<string[]>([]);
   const [userClicked, setUserClicked] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const colors = ['#FF4136', '#2ECC40', '#FFDC00', '#0074D9', '#B10DC9', '#FF851B'];
   const colorNames = ['Red', 'Green', 'Yellow', 'Blue', 'Purple', 'Orange'];
@@ -32,12 +33,19 @@ const QuickReflex = ({ score, onCorrect, onWrong, gameStarted }: QuickReflexProp
   }, []);
 
   const startNewRound = useCallback(() => {
+    // Clear any existing timeouts
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     const newSequence = generateSequence(score);
     setSequence(newSequence);
     setColorIndex(0);
     setFlashInterval(Math.max(500, 1200 - score * 50));
     setGameState('playing');
     setUserClicked(false);
+    setCurrentColor('');
     
     // Set target color (randomly choose one that appears in sequence)
     const targetIndex = Math.floor(Math.random() * newSequence.length);
@@ -56,27 +64,61 @@ const QuickReflex = ({ score, onCorrect, onWrong, gameStarted }: QuickReflexProp
     }
   };
 
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     if (gameState === 'playing' && colorIndex < sequence.length) {
-      const timer = setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         setCurrentColor(sequence[colorIndex]);
         setColorIndex(prev => prev + 1);
       }, flashInterval);
       
-      return () => clearTimeout(timer);
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+      };
     } else if (gameState === 'playing' && colorIndex >= sequence.length) {
       // Sequence finished without user clicking
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         onWrong();
       }, 500);
+      
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+      };
     }
   }, [gameState, colorIndex, sequence, flashInterval, onCorrect, onWrong]);
 
   useEffect(() => {
     if (gameStarted) {
       startNewRound();
+    } else {
+      // Reset state when game is not started
+      cleanup();
+      setGameState('waiting');
+      setCurrentColor('');
+      setTargetColor('');
+      setColorIndex(0);
+      setSequence([]);
+      setUserClicked(false);
     }
-  }, [gameStarted, startNewRound]);
+  }, [gameStarted, startNewRound, cleanup]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return cleanup;
+  }, [cleanup]);
 
   if (!gameStarted) {
     return null;

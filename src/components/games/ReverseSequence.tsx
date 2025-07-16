@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { RotateCcw, ArrowLeft, ArrowRight, Play, Pause } from "lucide-react";
@@ -17,6 +17,7 @@ const ReverseSequence = ({ score, onCorrect, onWrong, gameStarted }: ReverseSequ
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showTime, setShowTime] = useState(800);
   const [sequenceLength, setSequenceLength] = useState(4);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const colors = ['#FF4136', '#2ECC40', '#FFDC00', '#0074D9', '#B10DC9', '#FF851B'];
   const colorNames = ['Red', 'Green', 'Yellow', 'Blue', 'Purple', 'Orange'];
@@ -32,6 +33,12 @@ const ReverseSequence = ({ score, onCorrect, onWrong, gameStarted }: ReverseSequ
   }, []);
 
   const startNewRound = useCallback(() => {
+    // Clear any existing timeouts
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
     const newSequence = generateSequence(score);
     setSequence(newSequence);
     setUserInput([]);
@@ -64,25 +71,57 @@ const ReverseSequence = ({ score, onCorrect, onWrong, gameStarted }: ReverseSequ
     setUserInput([]);
   };
 
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     if (gameState === 'showing' && currentIndex < sequence.length) {
-      const timer = setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         setCurrentIndex(prev => prev + 1);
       }, showTime);
       
-      return () => clearTimeout(timer);
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+      };
     } else if (gameState === 'showing' && currentIndex >= sequence.length) {
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         setGameState('inputting');
       }, 500);
+      
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+      };
     }
   }, [gameState, currentIndex, sequence.length, showTime]);
 
   useEffect(() => {
     if (gameStarted) {
       startNewRound();
+    } else {
+      // Reset state when game is not started
+      cleanup();
+      setGameState('showing');
+      setSequence([]);
+      setUserInput([]);
+      setCurrentIndex(0);
     }
-  }, [gameStarted, startNewRound]);
+  }, [gameStarted, startNewRound, cleanup]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return cleanup;
+  }, [cleanup]);
 
   if (!gameStarted) {
     return null;
@@ -107,7 +146,7 @@ const ReverseSequence = ({ score, onCorrect, onWrong, gameStarted }: ReverseSequ
               transition={{ duration: 1, repeat: Infinity }}
               className="text-2xl font-bold mb-4"
             >
-              Watch the sequence... ({showTime}ms per color)
+              Watch the sequence... ({Math.round(showTime)}ms per color)
             </motion.h2>
             <motion.div
               animate={{ rotate: [0, 360] }}

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RotateCcw, Trophy, Zap, Target, Brain, Eye, Palette, MousePointer, Play } from "lucide-react";
+import { ArrowLeft, RotateCcw, Trophy, Zap, Target, Brain, Eye, Palette, MousePointer, Play, Type } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import GameGrid from "@/components/GameGrid";
 import ScoreBar from "@/components/ScoreBar";
@@ -17,6 +17,7 @@ import QuickReflex from "@/components/games/QuickReflex";
 import ReverseSequence from "@/components/games/ReverseSequence";
 import TrailTracker from "@/components/games/TrailTracker";
 import PaletteRecall from "@/components/games/PaletteRecall";
+import SpeedTypist from "@/components/games/SpeedTypist";
 
 export type GameState = 'waiting' | 'showing' | 'question' | 'correct' | 'wrong' | 'gameOver';
 
@@ -64,6 +65,12 @@ const GAME_MODES = {
     icon: Palette,
     color: 'from-yellow-400 to-orange-400',
     description: 'Identify subtle color differences'
+  },
+  'speed-typist': {
+    name: 'Speed Typist',
+    icon: Type,
+    color: 'from-teal-400 to-cyan-400',
+    description: 'Type words quickly and accurately'
   }
 };
 
@@ -396,6 +403,8 @@ const Game = () => {
         return <TrailTracker score={score} onCorrect={handleCorrect} onWrong={handleWrong} gameStarted={gameStarted} />;
       case 'palette-recall':
         return <PaletteRecall score={score} onCorrect={handleCorrect} onWrong={handleWrong} gameStarted={gameStarted} />;
+      case 'speed-typist':
+        return <SpeedTypist score={score} onCorrect={handleCorrect} onWrong={handleWrong} gameStarted={gameStarted} />;
       default:
         return null; // Classic mode uses the existing GameGrid
     }
@@ -842,7 +851,7 @@ const Game = () => {
                       <Link to="/auth">
                         <Button
                           variant="outline"
-                          className="border-white/20 text-white hover:bg-white/10 w-full"
+                          className="border-white/20 text-white hover:bg-white/10 w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                         >
                           <Target className="w-4 h-4 mr-2" />
                           Sign In to Save Scores

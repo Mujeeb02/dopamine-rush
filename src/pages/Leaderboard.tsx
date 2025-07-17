@@ -16,6 +16,8 @@ import {
   Target,
   MousePointer,
   Palette,
+  Type,
+  ExternalLink,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -67,6 +69,11 @@ const GAME_MODES = {
     name: 'Palette Recall',
     icon: Palette,
     color: 'from-yellow-400 to-orange-400',
+  },
+  'speed-typist': {
+    name: 'Speed Typist',
+    icon: Type,
+    color: 'from-teal-400 to-cyan-400',
   }
 };
 
@@ -114,15 +121,11 @@ const Leaderboard = () => {
 
       // Get all scores with user profile information
       console.log("📊 Querying game_scores table...");
+      
+      // First, let's try a simpler approach - get all scores
       const { data: scoresData, error: scoresError } = await supabase
         .from("game_scores")
-        .select(`
-          *,
-          profiles!game_scores_user_id_fkey (
-            username,
-            email
-          )
-        `)
+        .select("*")
         .order("score", { ascending: false });
 
       if (scoresError) {
@@ -141,10 +144,33 @@ const Leaderboard = () => {
         return;
       }
 
+      // Get unique user IDs from scores
+      const userIds = [...new Set(scoresData.map(score => score.user_id))];
+
+      // Fetch profiles for these users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, username, email")
+        .in("id", userIds);
+
+      if (profilesError) {
+        console.error("❌ Error fetching profiles:", profilesError);
+        // Continue without profiles
+      }
+
+      // Create a map of user ID to profile
+      const profileMap = new Map();
+      if (profilesData) {
+        profilesData.forEach(profile => {
+          profileMap.set(profile.id, profile);
+        });
+      }
+
       // Process the joined data - scores now include profile information
       const userBestScores = new Map();
       scoresData.forEach((score) => {
-        const profile = score.profiles; // Access the joined profile data
+        const profile = profileMap.get(score.user_id); // Get profile from our map
+        
         const key = `${score.user_id}-${score.game_mode}`;
         if (
           !userBestScores.has(key) ||
@@ -212,6 +238,7 @@ const Leaderboard = () => {
   };
 
   const handleUserClick = (userId: string) => {
+    // Navigate to user profile - works for both authenticated and non-authenticated users
     navigate(`/profile/${userId}`);
   };
 
@@ -336,7 +363,7 @@ const Leaderboard = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className={`p-4 rounded-lg border backdrop-blur-sm cursor-pointer transition-all duration-200 hover:scale-105 ${getRankColor(rank)}`}
+                  className={`p-4 rounded-lg border backdrop-blur-sm cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-cyan-400/20 ${getRankColor(rank)}`}
                   onClick={() => handleUserClick(entry.user_id)}
                 >
                   <div className="flex items-center justify-between">
@@ -344,9 +371,12 @@ const Leaderboard = () => {
                       <div className="flex items-center gap-2">
                         {getRankIcon(rank)}
                         <div>
-                          <h3 className="font-bold text-lg">
-                            {getDisplayName(entry)}
-                          </h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-lg text-white hover:text-cyan-400 transition-colors duration-200 cursor-pointer">
+                              {getDisplayName(entry)}
+                            </h3>
+                            <ExternalLink className="w-4 h-4 text-gray-400 opacity-60" />
+                          </div>
                           <div className="flex items-center gap-2 text-sm text-gray-400">
                             <GameModeIcon className="w-4 h-4" />
                             <span>{gameModeInfo.name}</span>

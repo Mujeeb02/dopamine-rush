@@ -49,7 +49,7 @@ const LoginPopup = ({ isOpen, onClose, score }: LoginPopupProps) => {
               
               <h2 className="text-2xl font-bold mb-2">Great Score!</h2>
               <p className="text-gray-300 mb-6">
-                You scored <span className="text-yellow-400 font-bold">{score}</span> points! 
+                You scored <span className="text-yellow-400 font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent hover:text-white transition-colors duration-200">{score}</span> points! 
                 Sign in to save your score and compete with players worldwide.
               </p>
 
@@ -64,7 +64,7 @@ const LoginPopup = ({ isOpen, onClose, score }: LoginPopupProps) => {
                 <Button
                   onClick={onClose}
                   variant="outline"
-                  className="border-white/20 text-white hover:bg-white/10 w-full"
+                  className="border-white/20 text-white hover:bg-white/10 w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                 >
                   Continue Without Saving
                 </Button>

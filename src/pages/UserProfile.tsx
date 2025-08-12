@@ -140,7 +140,7 @@ const UserProfile = () => {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-red-400 mb-4">User Not Found</h1>
             <p className="text-gray-400 mb-6">{error}</p>
-            <Button onClick={() => navigate('/leaderboard')}>
+            <Button onClick={() => navigate('/leaderboard')} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3 font-bold rounded-full w-full md:w-auto">
               Back to Leaderboard
             </Button>
           </div>
@@ -309,7 +309,7 @@ const UserProfile = () => {
             className="text-center mt-8 space-y-4"
           >
             <Link to="/leaderboard">
-              <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
+              <Button variant="outline" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3 font-bold rounded-full w-full md:w-auto">
                 Back to Leaderboard
               </Button>
             </Link>

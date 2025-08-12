@@ -119,13 +119,17 @@ const Leaderboard = () => {
       console.log("🔍 Fetching leaderboard data...");
       setLoading(true);
 
-      // Get all scores with user profile information
-      console.log("📊 Querying game_scores table...");
-      
-      // First, let's try a simpler approach - get all scores
+      // Get all scores with joined profile information in a single query
+      console.log("📊 Querying game_scores with profile join...");
       const { data: scoresData, error: scoresError } = await supabase
         .from("game_scores")
-        .select("*")
+        .select(`
+          id, score, streak, game_mode, created_at, user_id,
+          profiles!game_scores_user_id_fkey (
+            username,
+            email
+          )
+        `)
         .order("score", { ascending: false });
 
       if (scoresError) {
@@ -144,42 +148,35 @@ const Leaderboard = () => {
         return;
       }
 
-      // Get unique user IDs from scores
-      const userIds = [...new Set(scoresData.map(score => score.user_id))];
+      // Provide a type for the joined result so TS knows about profiles
+      type JoinedScore = {
+        id: string;
+        score: number;
+        streak: number;
+        game_mode: string;
+        created_at: string;
+        user_id: string;
+        profiles: { username: string | null; email: string | null } | null;
+      };
 
-      // Fetch profiles for these users
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, username, email")
-        .in("id", userIds);
+      const joinedScores = scoresData as unknown as JoinedScore[];
 
-      if (profilesError) {
-        console.error("❌ Error fetching profiles:", profilesError);
-        // Continue without profiles
-      }
-
-      // Create a map of user ID to profile
-      const profileMap = new Map();
-      if (profilesData) {
-        profilesData.forEach(profile => {
-          profileMap.set(profile.id, profile);
-        });
-      }
-
-      // Process the joined data - scores now include profile information
-      const userBestScores = new Map();
-      scoresData.forEach((score) => {
-        const profile = profileMap.get(score.user_id); // Get profile from our map
-        
+      // Process the joined data - pick best score per user per mode
+      const userBestScores = new Map<string, LeaderboardEntry>();
+      joinedScores.forEach((score) => {
+        const profile = score.profiles;
         const key = `${score.user_id}-${score.game_mode}`;
-        if (
-          !userBestScores.has(key) ||
-          userBestScores.get(key).score < score.score
-        ) {
+        if (!userBestScores.has(key) || (userBestScores.get(key)?.score || 0) < score.score) {
           userBestScores.set(key, {
-            ...score,
+            id: score.id,
+            score: score.score,
+            streak: score.streak,
+            game_mode: score.game_mode,
+            created_at: score.created_at,
+            user_id: score.user_id,
             username: profile?.username || "Anonymous",
             email: profile?.email || "Unknown",
+            profiles: profile,
           });
         }
       });

@@ -54,14 +54,9 @@ const QuickReflex = ({ score, onCorrect, onWrong, gameStarted }: QuickReflexProp
 
   const handleColorClick = () => {
     if (gameState !== 'playing') return;
-    
+    if (!currentColor) return; // guard when color hasn't flashed yet
     setUserClicked(true);
-    
-    if (currentColor === targetColor) {
-      onCorrect();
-    } else {
-      onWrong();
-    }
+    if (currentColor === targetColor) onCorrect(); else onWrong();
   };
 
   // Cleanup function
@@ -85,7 +80,7 @@ const QuickReflex = ({ score, onCorrect, onWrong, gameStarted }: QuickReflexProp
           timeoutRef.current = null;
         }
       };
-    } else if (gameState === 'playing' && colorIndex >= sequence.length) {
+      } else if (gameState === 'playing' && colorIndex >= sequence.length) {
       // Sequence finished without user clicking
       timeoutRef.current = setTimeout(() => {
         onWrong();
@@ -213,7 +208,7 @@ const QuickReflex = ({ score, onCorrect, onWrong, gameStarted }: QuickReflexProp
       </div>
 
       {/* Warning */}
-      {userClicked && currentColor !== targetColor && (
+      {userClicked && currentColor && currentColor !== targetColor && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

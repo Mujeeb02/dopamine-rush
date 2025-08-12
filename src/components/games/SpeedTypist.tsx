@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Type, Zap, Clock, CheckCircle, XCircle } from "lucide-react";
+import randomWords from 'random-words';
 
 interface SpeedTypistProps {
   score: number;
@@ -14,6 +15,8 @@ interface TypingWord {
   text: string;
   difficulty: 'easy' | 'medium' | 'hard';
   timeLimit: number;
+  targetWpm: number;
+  wordsCount: number;
 }
 
 const SpeedTypist = ({ score, onCorrect, onWrong, gameStarted }: SpeedTypistProps) => {
@@ -29,42 +32,66 @@ const SpeedTypist = ({ score, onCorrect, onWrong, gameStarted }: SpeedTypistProp
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Word lists by difficulty
-  const wordLists = {
-    easy: [
-      'hello', 'world', 'game', 'play', 'fun', 'fast', 'quick', 'smart', 'brain', 'test',
-      'type', 'speed', 'skill', 'learn', 'think', 'react', 'focus', 'mind', 'sharp', 'alert'
-    ],
-    medium: [
-      'challenge', 'adventure', 'excitement', 'brilliant', 'fantastic', 'wonderful', 'amazing',
-      'incredible', 'beautiful', 'powerful', 'creative', 'energetic', 'confident', 'successful',
-      'determined', 'passionate', 'inspired', 'motivated', 'focused', 'disciplined'
-    ],
-    hard: [
-      'supercalifragilisticexpialidocious', 'pneumonoultramicroscopicsilicovolcanoconioses',
-      'antidisestablishmentarianism', 'floccinaucinihilipilification', 'hippopotomonstrosesquippedaliophobia',
-      'pseudopseudohypoparathyroidism', 'spectrophotofluorometrically', 'thyroparathyroidectomized',
-      'dichlorodifluoromethane', 'psychoneuroendocrinological', 'electroencephalographically',
-      'immunoelectrophoretically', 'psychophysicotherapeutics', 'thyroparathyroidectomized',
-      'pneumoencephalographically', 'radioimmunoelectrophoresis', 'hepaticocholangiogastrostomy',
-      'esophagogastroduodenoscopy', 'electrocardiographically', 'immunoelectrophoretically'
-    ]
+  // rolling recent history to avoid repeats from generator
+  const recent = useRef<Set<string>>(new Set());
+  const RECENT_MAX = 60;
+
+  // Difficulty parameters scale with level
+  const getDifficultyParams = (level: number) => {
+    if (level < 5) {
+      // Early easy: short single words, low target WPM with more padding
+      return { difficulty: 'easy' as const, minLen: 3, maxLen: 6, wordsPerItem: 1, targetWpm: 24 + level, paddingMs: 1200 };
+    }
+    if (level < 10) {
+      // Late easy / entry medium
+      return { difficulty: 'easy' as const, minLen: 5, maxLen: 8, wordsPerItem: 1, targetWpm: 28 + (level - 5), paddingMs: 900 };
+    }
+    if (level < 15) {
+      // Medium: longer single word or short two-word phrase
+      return { difficulty: 'medium' as const, minLen: 6, maxLen: 10, wordsPerItem: level < 13 ? 1 : 2, targetWpm: 34 + (level - 10), paddingMs: 700 };
+    }
+    if (level < 20) {
+      // Hard intro: two-word phrases
+      return { difficulty: 'hard' as const, minLen: 7, maxLen: 12, wordsPerItem: 2, targetWpm: 42 + (level - 15), paddingMs: 600 };
+    }
+    // Very hard: two to three words, higher WPM, minimal padding
+    return { difficulty: 'hard' as const, minLen: 8, maxLen: 16, wordsPerItem: 2 + (level % 3 === 0 ? 1 : 0), targetWpm: Math.min(60, 48 + (level - 20)), paddingMs: 500 };
+  };
+
+  const pickWord = (minLen: number, maxLen: number): string => {
+    for (let i = 0; i < 60; i++) {
+      const candidate = (randomWords() as string).toLowerCase();
+      if (candidate.length < minLen || candidate.length > maxLen) continue;
+      if (!/^[a-z]+$/.test(candidate)) continue;
+      if (recent.current.has(candidate)) continue;
+      // accept
+      if (recent.current.size >= RECENT_MAX) {
+        const first = recent.current.values().next().value as string | undefined;
+        if (first) recent.current.delete(first);
+      }
+      recent.current.add(candidate);
+      return candidate;
+    }
+    return (randomWords() as string).toLowerCase();
   };
 
   const generateWord = useCallback((level: number): TypingWord => {
-    const difficulty = level < 5 ? 'easy' : level < 10 ? 'medium' : 'hard';
-    const words = wordLists[difficulty];
-    const randomWord = words[Math.floor(Math.random() * words.length)];
-    
-    // Calculate time limit based on word length and difficulty
-    const baseTime = difficulty === 'easy' ? 5000 : difficulty === 'medium' ? 4000 : 3000;
-    const timeLimit = Math.max(2000, baseTime - (level * 100));
-    
-    return {
-      text: randomWord,
-      difficulty,
-      timeLimit
-    };
+    const params = getDifficultyParams(level);
+    const words: string[] = [];
+    for (let i = 0; i < params.wordsPerItem; i++) {
+      words.push(pickWord(params.minLen, params.maxLen));
+    }
+    const text = words.join(' ');
+
+    // compute time limit from target WPM and length
+    const chars = text.length;
+    const wordsEquivalent = chars / 5; // standard typing metric
+    const minutesNeeded = wordsEquivalent / params.targetWpm;
+    const baseMs = minutesNeeded * 60000;
+    const levelPenalty = Math.max(0, level - 5) * 30; // shrink time slightly as level increases
+    const timeLimit = Math.max(1800, Math.min(12000, Math.round(baseMs + params.paddingMs - levelPenalty)));
+
+    return { text, difficulty: params.difficulty, timeLimit, targetWpm: params.targetWpm, wordsCount: params.wordsPerItem };
   }, []);
 
   const startNewRound = useCallback(() => {
@@ -107,10 +134,11 @@ const SpeedTypist = ({ score, onCorrect, onWrong, gameStarted }: SpeedTypistProp
   };
 
   const calculateWPM = (input: string, timeElapsed: number): number => {
-    if (timeElapsed === 0) return 0;
-    const words = input.trim().split(/\s+/).length;
+    if (timeElapsed <= 0) return 0;
+    const chars = input.length;
+    const words = chars / 5;
     const minutes = timeElapsed / 60000;
-    return Math.round(words / minutes);
+    return Math.max(0, Math.round(words / minutes));
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -167,14 +195,12 @@ const SpeedTypist = ({ score, onCorrect, onWrong, gameStarted }: SpeedTypistProp
     if (gameState === 'typing' && timeLeft > 0) {
       timerRef.current = setInterval(() => {
         setTimeLeft(prev => {
-          if (prev <= 100) {
+          const next = Math.max(0, prev - 100);
+          if (next === 0) {
             setGameState('timeout');
-            setTimeout(() => {
-              onWrong();
-            }, 500);
-            return 0;
+            setTimeout(() => onWrong(), 200);
           }
-          return prev - 100;
+          return next;
         });
       }, 100);
 
@@ -365,6 +391,9 @@ const SpeedTypist = ({ score, onCorrect, onWrong, gameStarted }: SpeedTypistProp
           <div className="text-2xl font-bold text-yellow-400">
             {wpm}
           </div>
+          {currentWord && (
+            <div className="text-xs text-gray-500 mt-1">Target: {currentWord.targetWpm}</div>
+          )}
         </motion.div>
       </div>
 

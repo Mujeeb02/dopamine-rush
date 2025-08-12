@@ -91,7 +91,7 @@ const PaletteRecall = ({ score, onCorrect, onWrong, gameStarted }: PaletteRecall
     setQuestionIndex(questionIdx);
   }, [score, generatePalette]);
 
-  const handleOptionClick = (selectedColor: string) => {
+  const handleOptionClick = useCallback((selectedColor: string) => {
     const correctColor = palette[questionIndex];
     const isCorrect = selectedColor === correctColor;
     
@@ -99,6 +99,12 @@ const PaletteRecall = ({ score, onCorrect, onWrong, gameStarted }: PaletteRecall
       setCorrectAnswers(prev => prev + 1);
     }
     
+    // stop countdown immediately when answered
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+
     // Move to next round or end game
     if (round < totalRounds) {
       setRound(prev => prev + 1);
@@ -115,7 +121,7 @@ const PaletteRecall = ({ score, onCorrect, onWrong, gameStarted }: PaletteRecall
         onWrong();
       }
     }
-  };
+  }, [palette, questionIndex, round, totalRounds, correctAnswers, score, onCorrect, onWrong, startNewRound]);
 
   const startCountdown = useCallback(() => {
     // Easy: More time, Medium: Moderate time, Hard: Less time

@@ -83,6 +83,7 @@ const Leaderboard = () => {
     LeaderboardEntry[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [avgRatingsByMode, setAvgRatingsByMode] = useState<Record<string, number>>({});
   const [userRank, setUserRank] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGameMode, setSelectedGameMode] = useState<string>("all");
@@ -91,6 +92,7 @@ const Leaderboard = () => {
 
   useEffect(() => {
     fetchLeaderboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Filter leaderboard based on search term and game mode
@@ -190,6 +192,24 @@ const Leaderboard = () => {
       setLeaderboard(topScores);
       setFilteredLeaderboard(topScores);
 
+      // Fetch average ratings per game mode
+      const { data: ratingsAgg, error: ratingsError } = await supabase
+        .from('game_reviews')
+        .select('game_mode, rating');
+      if (!ratingsError && ratingsAgg) {
+        const sums: Record<string, { total: number; count: number }> = {};
+        ratingsAgg.forEach((r: { game_mode: string; rating: number }) => {
+          if (!sums[r.game_mode]) sums[r.game_mode] = { total: 0, count: 0 };
+          sums[r.game_mode].total += r.rating;
+          sums[r.game_mode].count += 1;
+        });
+        const avgs: Record<string, number> = {};
+        Object.keys(sums).forEach((k) => {
+          avgs[k] = Math.round((sums[k].total / Math.max(1, sums[k].count)) * 10) / 10;
+        });
+        setAvgRatingsByMode(avgs);
+      }
+
       // Find current user's rank
       if (isAuthenticated && user) {
         const userEntry = topScores.findIndex(
@@ -268,9 +288,19 @@ const Leaderboard = () => {
           </Button>
         </Link>
 
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-          Global Leaderboard
-        </h1>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+            Global Leaderboard
+          </h1>
+          {selectedGameMode !== 'all' && (
+            <div className="text-sm text-gray-400 flex items-center justify-center gap-2 mt-1">
+              <span>Avg rating:</span>
+              <span className="text-yellow-400 font-semibold">
+                {avgRatingsByMode[selectedGameMode] ? `${avgRatingsByMode[selectedGameMode]}★` : '—'}
+              </span>
+            </div>
+          )}
+        </div>
 
         <div className="w-20" />
       </div>

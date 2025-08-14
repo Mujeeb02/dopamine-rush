@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      game_reviews: {
+        Row: {
+          created_at: string
+          game_mode: string
+          id: string
+          rating: number
+          review: string | null
+          score_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          game_mode: string
+          id?: string
+          rating: number
+          review?: string | null
+          score_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          game_mode?: string
+          id?: string
+          rating?: number
+          review?: string | null
+          score_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_reviews_score_id_fkey"
+            columns: ["score_id"]
+            isOneToOne: false
+            referencedRelation: "game_scores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_scores: {
         Row: {
           created_at: string

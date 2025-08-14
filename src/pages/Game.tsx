@@ -2,11 +2,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RotateCcw, Trophy, Zap, Target, Brain, Eye, Palette, MousePointer, Play, Type } from "lucide-react";
+import { ArrowLeft, RotateCcw, Trophy, Zap, Target, Brain, Eye, Palette, MousePointer, Play, Type, Star } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import GameGrid from "@/components/GameGrid";
 import ScoreBar from "@/components/ScoreBar";
 import LoginPopup from "@/components/LoginPopup";
+import RatingDialog from "@/components/ui/rating-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -130,13 +131,17 @@ const Game = () => {
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [particles, setParticles] = useState<Array<{x: number; y: number; color: string; id: number}>>([]);
   const [showStreakEffect, setShowStreakEffect] = useState(false);
+  const [showRating, setShowRating] = useState(false);
+  const [lastSavedScoreId, setLastSavedScoreId] = useState<string | null>(null);
+  const [avgRatingsByMode, setAvgRatingsByMode] = useState<Record<string, number>>({});
+  const [ratingCountsByMode, setRatingCountsByMode] = useState<Record<string, number>>({});
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const titleAnimation = useAnimation();
 
-  const colors = ['#7FDBFF', '#FFDC00', '#FF4136', '#B10DC9', '#2ECC40', '#FF851B', '#01FF70', '#F012BE'];
-  const colorNames = ['Cyan', 'Yellow', 'Red', 'Purple', 'Green', 'Orange', 'Lime', 'Magenta'];
+  const colors = React.useMemo(() => ['#7FDBFF', '#FFDC00', '#FF4136', '#B10DC9', '#2ECC40', '#FF851B', '#01FF70', '#F012BE'], []);
+  const colorNames = React.useMemo(() => ['Cyan', 'Yellow', 'Red', 'Purple', 'Green', 'Orange', 'Lime', 'Magenta'], []);
 
   const currentGameMode = gameMode ? GAME_MODES[gameMode as keyof typeof GAME_MODES] || GAME_MODES.classic : null;
 
@@ -168,7 +173,7 @@ const Game = () => {
       ...card,
       position: shuffledPositions[index]
     })).sort((a, b) => a.position - b.position);
-  }, []);
+  }, [colors, colorNames]);
 
   // Create particle explosion effect
   const createParticleExplosion = (x: number, y: number, color: string) => {
@@ -221,14 +226,16 @@ const Game = () => {
         }
       }
 
-      const { error } = await supabase
+      const { data: scoreInsert, error } = await supabase
         .from('game_scores')
         .insert({
           user_id: user.id,
           score: finalScore,
           streak: finalStreak,
           game_mode: gameMode || 'classic'
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) {
         console.error('Error saving score:', error);
@@ -236,9 +243,14 @@ const Game = () => {
       }
 
       console.log('Score saved successfully');
+      if (scoreInsert?.id) {
+        setLastSavedScoreId(scoreInsert.id);
+        setShowRating(true);
+      }
       toast({
         title: "Score Saved!",
         description: `Your score of ${finalScore} has been saved to the leaderboard.`,
+        variant: "success",
       });
     } catch (error) {
       console.error('Error saving score:', error);
@@ -247,6 +259,27 @@ const Game = () => {
         description: "There was an error saving your score.",
         variant: "destructive",
       });
+    }
+  };
+
+  const submitReview = async (rating: number, review: string) => {
+    if (!isAuthenticated || !user?.id || !lastSavedScoreId) return;
+    try {
+      await supabase
+        .from('game_reviews')
+        .insert({
+          user_id: user.id,
+          game_mode: gameMode || 'classic',
+          score_id: lastSavedScoreId,
+          rating,
+          review: review || null,
+        });
+      toast({ title: 'Thanks for the feedback!', description: 'Your review has been recorded.', variant: 'success' });
+    } catch (e) {
+      console.error('Failed to submit review', e);
+      toast({ title: 'Review not saved', description: 'Please try again later.', variant: 'destructive' });
+    } finally {
+      setShowRating(false);
     }
   };
 
@@ -388,6 +421,49 @@ const Game = () => {
     }
   }, [score, highScore, gameMode]);
 
+  // Fetch average ratings per game mode for the Choose Mode screen
+  useEffect(() => {
+    const fetchModeRatings = async () => {
+      try {
+        const { data, error } = await supabase.from('game_reviews').select('game_mode, rating');
+        if (error) return;
+        const sums: Record<string, { total: number; count: number }> = {};
+        (data as Array<{ game_mode: string; rating: number }>).forEach((r) => {
+          if (!sums[r.game_mode]) sums[r.game_mode] = { total: 0, count: 0 };
+          sums[r.game_mode].total += r.rating;
+          sums[r.game_mode].count += 1;
+        });
+        const avgs: Record<string, number> = {};
+        const counts: Record<string, number> = {};
+        Object.keys(GAME_MODES).forEach((mode) => {
+          if (sums[mode]) {
+            avgs[mode] = Math.round((sums[mode].total / Math.max(1, sums[mode].count)) * 10) / 10;
+            counts[mode] = sums[mode].count;
+          } else {
+            avgs[mode] = 0;
+            counts[mode] = 0;
+          }
+        });
+        setAvgRatingsByMode(avgs);
+        setRatingCountsByMode(counts);
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchModeRatings();
+  }, []);
+
+  const renderStars = (value: number) => {
+    const stars = [1, 2, 3, 4, 5];
+    return (
+      <div className="flex items-center gap-0.5">
+        {stars.map((s) => (
+          <Star key={s} className={value >= s ? 'text-yellow-400 fill-yellow-400 w-3.5 h-3.5' : 'text-gray-500 w-3.5 h-3.5'} />
+        ))}
+      </div>
+    );
+  };
+
   // Render different game components based on game mode
   const renderGameComponent = () => {
     const gameStarted = gameState === 'showing' || gameState === 'question';
@@ -432,15 +508,19 @@ const Game = () => {
           <div className="w-20" />
         </div>
 
-        {/* Game Mode Selection */}
+        {/* Game Mode Selection (sorted by rating) */}
         <div className="container mx-auto px-6 py-8 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto"
           >
-            {Object.entries(GAME_MODES).map(([modeId, mode]) => {
+            {Object.entries(GAME_MODES)
+              .sort((a, b) => (avgRatingsByMode[b[0]] || 0) - (avgRatingsByMode[a[0]] || 0))
+              .map(([modeId, mode]) => {
               const ModeIcon = mode.icon;
+                const avg = avgRatingsByMode[modeId] || 0;
+                const count = ratingCountsByMode[modeId] || 0;
               return (
                 <motion.div
                   key={modeId}
@@ -454,6 +534,11 @@ const Game = () => {
                     <div className={`p-3 rounded-lg bg-gradient-to-r ${mode.color}`}>
                       <ModeIcon className="w-6 h-6 text-white" />
                     </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        {renderStars(Math.round(avg))}
+                        <span className="text-yellow-300">{avg ? `${avg.toFixed(1)}★` : '—'}</span>
+                        <span className="text-gray-400">({count})</span>
+                      </div>
                   </div>
                   
                   <h3 className="text-xl font-bold mb-2">{mode.name}</h3>
@@ -871,6 +956,12 @@ const Game = () => {
         isOpen={showLoginPopup} 
         onClose={() => setShowLoginPopup(false)} 
         score={score}
+      />
+      <RatingDialog
+        open={showRating}
+        onClose={() => setShowRating(false)}
+        onSubmit={submitReview}
+        gameName={currentGameMode?.name || 'Classic Memory'}
       />
     </div>
   );

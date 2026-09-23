@@ -123,7 +123,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      start_game: { Args: { p_mode: string; p_request: string }; Returns: string }
+      get_game_round: { Args: { p_session: string }; Returns: Json }
+      answer_round: { Args: { p_session: string; p_round: number; p_answer: Json }; Returns: Json }
+      abandon_game: { Args: { p_session: string }; Returns: undefined }
+      update_player: { Args: { p_username: string }; Returns: undefined }
+      player_summary: { Args: { p_user: string }; Returns: Json }
+      get_leaderboard: { Args: { p_mode: string; p_period: string; p_offset: number }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

@@ -6,7 +6,7 @@ A challenging memory game built with React, TypeScript, and Supabase. Test your 
 
 - **Memory Challenge**: Remember the sequence of colored cards
 - **Progressive Difficulty**: More cards appear as you advance
-- **Global Leaderboard**: Compete with players worldwide
+- **Top Scores**: See each player's best score per game mode
 - **User Profiles**: Track your progress and statistics
 - **Responsive Design**: Play on desktop or mobile devices
 
@@ -14,7 +14,7 @@ A challenging memory game built with React, TypeScript, and Supabase. Test your 
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
+- Node.js 22 or higher
 - npm or yarn
 
 ### Installation
@@ -31,10 +31,10 @@ npm install
 ```
 
 3. Set up environment variables:
-Create a `.env` file in the root directory and add your Supabase credentials:
+Copy `.env.example` to `.env` and add your Supabase project URL and publishable key:
 ```env
 VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 ```
 
 4. Start the development server:
@@ -42,7 +42,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 npm run dev
 ```
 
-5. Open your browser and navigate to `http://localhost:5173`
+5. Open your browser at the URL printed by Vite (port 8080 by default).
 
 ## 🛠️ Technologies Used
 
@@ -58,7 +58,7 @@ npm run dev
 2. **Memorize**: Watch the cards flash in sequence
 3. **Recall**: Click the cards in the same order
 4. **Advance**: Each correct answer adds a point and increases difficulty
-5. **Compete**: Sign in to save your scores and compete on the leaderboard
+5. **Compare**: Sign in to save your scores and view top attempts
 
 ## 📊 Game Mechanics
 
@@ -85,13 +85,18 @@ src/
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
+- `npm run typecheck` - Check TypeScript
 
 ## 🚀 Deployment
 
 ### Vercel (Recommended)
 1. Push your code to GitHub
 2. Connect your repository to Vercel
-3. Deploy automatically on every push
+3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the Vercel environment
+4. Apply pending migrations in `supabase/migrations` to the intended Supabase project, review grants and RLS, and test a signed-in save and anonymous leaderboard load
+5. Deploy after `npm run typecheck`, `npm run lint`, and `npm run build` pass
+
+Score submissions still come from the browser. The SQL constraints reject malformed values, but they cannot prove a player completed a game. Do not use these scores for prizes or other competitive decisions until challenge generation and scoring are verified by a trusted server.
 
 ### Netlify
 1. Build the project: `npm run build`

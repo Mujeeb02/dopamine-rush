@@ -22,6 +22,8 @@ create unique index if not exists uniq_game_reviews_user_score on public.game_re
 
 -- Enable RLS
 alter table public.game_reviews enable row level security;
+grant select on public.game_reviews to anon, authenticated;
+grant insert, update on public.game_reviews to authenticated;
 
 -- Anyone can read reviews (Postgres doesn't support IF NOT EXISTS for policies on older versions)
 drop policy if exists "Public can read game reviews" on public.game_reviews;

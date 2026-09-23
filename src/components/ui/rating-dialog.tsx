@@ -16,9 +16,11 @@ const RatingDialog = ({ open, onClose, onSubmit, gameName }: RatingDialogProps) 
   const [hover, setHover] = useState<number>(0);
   const [review, setReview] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async () => {
     if (!rating) return;
+    setError('');
     try {
       setSubmitting(true);
       await onSubmit(rating, review.trim());
@@ -26,6 +28,8 @@ const RatingDialog = ({ open, onClose, onSubmit, gameName }: RatingDialogProps) 
       setHover(0);
       setReview("");
       onClose();
+    } catch {
+      setError('Your review could not be saved. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -46,7 +50,9 @@ const RatingDialog = ({ open, onClose, onSubmit, gameName }: RatingDialogProps) 
             <button
               key={star}
               type="button"
-              className="p-1"
+              className="p-2 min-h-11 min-w-11"
+              aria-label={`Rate ${star} out of 5`}
+              aria-pressed={rating === star}
               onMouseEnter={() => setHover(star)}
               onMouseLeave={() => setHover(0)}
               onClick={() => setRating(star)}
@@ -57,11 +63,13 @@ const RatingDialog = ({ open, onClose, onSubmit, gameName }: RatingDialogProps) 
         </div>
 
         <Textarea
+          aria-label="Your review (optional)"
           placeholder="Leave an optional review (max 500 chars)"
           value={review}
           onChange={(e) => setReview(e.target.value.slice(0, 500))}
           className="bg-white/5 border-white/10 text-white"
         />
+        {error && <p role="alert" className="error-text">{error}</p>}
 
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={submitting}>Skip</Button>

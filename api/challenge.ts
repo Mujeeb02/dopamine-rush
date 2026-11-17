@@ -1,10 +1,9 @@
 import { injectMeta } from '../seo/meta.mjs';
 import { gamePages } from '../seo/pages.mjs';
-import { rpc, type PublicChallenge } from './_supabase';
-export const config = { runtime: 'edge' };
+import { rpc, type PublicChallenge } from './_supabase.js';
 
 /** Serves the app shell for /c/:slug with link-preview tags, so WhatsApp, X and Discord show the challenge. */
-export default async function handler(req: Request) {
+export async function GET(req: Request) {
   const url = new URL(req.url);
   const slug = (url.searchParams.get('slug') ?? '').replace(/[^0-9A-Za-z]/g, '').slice(0, 12);
   const shell = await fetch(new URL('/app.html', url.origin)).then(r => r.text());

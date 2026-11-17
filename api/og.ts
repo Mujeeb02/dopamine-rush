@@ -1,6 +1,6 @@
 import { ImageResponse } from '@vercel/og';
 import { gamePages } from '../seo/pages.mjs';
-import { rpc, type PublicChallenge } from './_supabase';
+import { rpc, type PublicChallenge } from './_supabase.js';
 export const config = { runtime: 'edge' };
 
 type Node = { type: string; props: Record<string, unknown> & { children?: unknown } };

@@ -1,14 +1,8 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /c/
+Disallow: /settings
+Disallow: /auth
+
+Sitemap: https://dopamine-rush.vercel.app/sitemap.xml

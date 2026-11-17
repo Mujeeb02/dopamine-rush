@@ -27,8 +27,12 @@ describe('game controls and timer cleanup',()=>{
   });
   it('uses Space for reflex play and removes the listener after unmount',()=>{
     vi.useFakeTimers();const answer=vi.fn();const view=render(<QuickReflex challenge={{mode:'quick-reflex',round:0,reveal_ms:0,limit_ms:3000,sequence:[0,1,2],target:2,interval_ms:1000}} onAnswer={answer}/>);
-    act(()=>vi.advanceTimersByTime(2100));fireEvent.keyDown(window,{code:'Space'});expect(answer).toHaveBeenCalledWith(2);
+    act(()=>vi.advanceTimersByTime(2100));fireEvent.keyDown(window,{code:'Space'});expect(answer).toHaveBeenCalledWith(expect.objectContaining({pick:2}));
     view.unmount();answer.mockClear();fireEvent.keyDown(window,{code:'Space'});expect(answer).not.toHaveBeenCalled();expect(vi.getTimerCount()).toBe(0);
+  });
+  it('reports an early tap without a reaction time',()=>{
+    vi.useFakeTimers();const answer=vi.fn();render(<QuickReflex challenge={{mode:'quick-reflex',round:0,reveal_ms:0,limit_ms:3000,sequence:[0,1,2],target:2,interval_ms:1000}} onAnswer={answer}/>);
+    act(()=>vi.advanceTimersByTime(500));fireEvent.keyDown(window,{code:'Space'});expect(answer).toHaveBeenCalledWith({pick:0});
   });
   it('accepts exact typing and rejects a partial or mismatched word',()=>{
     const answer=vi.fn();render(<SpeedTypist challenge={{mode:'speed-typist',round:0,reveal_ms:0,limit_ms:5000,word:'focus'}} onAnswer={answer}/>);

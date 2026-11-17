@@ -5,16 +5,17 @@ import { useAuth } from '@/hooks/useAuth';
 import { games, gameById } from '@/lib/games';
 import { achievements, dailyChallenge, durationLabel, levelFromXp } from '@/lib/progression';
 import type { PlayerSummary } from '@/lib/api';
+import { reportError } from '@/lib/analytics';
 
 export function Shell({children}:{children:ReactNode}){
   const {user}=useAuth();
   return <div className="app-shell"><a href="#main" className="skip-link">Skip to content</a>
     <header className="site-header"><Link to="/" className="brand" aria-label="Dopamine Rush home"><span className="brand-mark"><Zap size={23} fill="currentColor"/></span><span>DOPAMINE<span className="brand-sub">RUSH</span></span></Link>
-    <nav className="desktop-nav" aria-label="Main navigation"><NavLink to="/game">Play</NavLink><NavLink to="/dashboard">My progress</NavLink><NavLink to="/challenges">Daily challenge</NavLink><NavLink to="/leaderboard">Leaderboard</NavLink></nav>
-    <div className="header-actions"><Link className="icon-button" to="/settings" aria-label="Settings"><Settings size={19}/></Link><Link className="button button-small" to={user?'/profile':'/auth'}>{user?'My profile':'Sign in'}<ArrowUpRight size={15}/></Link></div></header>
+    <nav className="desktop-nav" aria-label="Main navigation"><NavLink to="/game">Play</NavLink><NavLink to="/dashboard">My progress</NavLink><NavLink to="/daily">Daily challenge</NavLink><NavLink to="/leaderboard">Leaderboard</NavLink></nav>
+    <div className="header-actions"><Link className="icon-button" to="/settings" aria-label="Settings"><Settings size={19}/></Link><Link className="button button-small" to={user&&!user.is_anonymous?'/profile':user?'/auth?upgrade=1':'/auth'}>{user&&!user.is_anonymous?'My profile':user?'Save progress':'Sign in'}<ArrowUpRight size={15}/></Link></div></header>
     <main id="main">{children}</main>
     <footer className="site-footer"><Link to="/" className="wordmark">Dopamine Rush<span>®</span></Link><p>Small challenges. A little more focus.</p><span>Play for your next personal best.</span></footer>
-    <nav className="mobile-nav" aria-label="Mobile navigation">{[[Gamepad2,'Play','/game'],[LayoutDashboard,'Progress','/dashboard'],[CalendarDays,'Daily','/challenges'],[Trophy,'Ranks','/leaderboard']].map(([Icon,label,path])=>{const I=Icon as typeof Gamepad2;return <NavLink key={String(path)} to={String(path)}><I size={20}/><span>{String(label)}</span></NavLink>;})}</nav>
+    <nav className="mobile-nav" aria-label="Mobile navigation">{[[Gamepad2,'Play','/game'],[LayoutDashboard,'Progress','/dashboard'],[CalendarDays,'Daily','/daily'],[Trophy,'Ranks','/leaderboard']].map(([Icon,label,path])=>{const I=Icon as typeof Gamepad2;return <NavLink key={String(path)} to={String(path)}><I size={20}/><span>{String(label)}</span></NavLink>;})}</nav>
   </div>;
 }
 export function PageIntro({eyebrow,title,description,children}:{eyebrow:string;title:string;description?:string;children?:ReactNode}){
@@ -40,9 +41,9 @@ export function ErrorState({message,onRetry}:{message:string;onRetry?:()=>void})
 export function XpProgress({xp}:{xp:number}){const level=levelFromXp(xp);return <div className="xp-block"><div className="xp-heading"><span className="level-badge">LVL {level.level}</span><span>{level.current.toLocaleString()} / {level.needed.toLocaleString()} XP</span></div><div className="progress-track" role="progressbar" aria-label="Level progress" aria-valuenow={level.current} aria-valuemax={level.needed}><span style={{width:`${level.percent}%`}}/></div></div>;}
 export function DailyCard({player}:{player?:PlayerSummary}){
   const daily=dailyChallenge();
-  return <section className="daily-card"><div><span className="eyebrow"><CalendarDays size={14}/> Your daily focus</span><h2>{daily.game.name}</h2><p>Clear {daily.target} rounds in one run.<br/>A fresh challenge every day, at midnight UTC.</p>
+  return <section className="daily-card"><div><span className="eyebrow"><CalendarDays size={14}/> Your daily focus</span><h2>{daily.game.name}</h2><p>Same rounds for everyone. Your first run counts.<br/>Clear {daily.target} rounds for bonus XP. New challenge at 05:30 IST (midnight UTC).</p>
     <div className="daily-progress"><span>{player?.daily_completed?<><Check size={16}/> Completed · reward earned</>:`${Math.min(player?.daily_progress??0,5)} / 5 rounds`}</span><strong>+{daily.reward} XP</strong></div>
-    <Link className="button" to={`/game/${daily.game.id}`}>{player?.daily_completed?'Beat your best':'Take the challenge'}<ArrowUpRight size={17}/></Link></div><GameArt id={daily.game.id}/></section>;
+    <Link className="button" to="/daily">{player?.daily_completed?'See today’s board':'Take the challenge'}<ArrowUpRight size={17}/></Link></div><GameArt id={daily.game.id}/></section>;
 }
 export function AchievementGrid({player}:{player:PlayerSummary}){
   return <div className="achievement-grid">{achievements(player as unknown as Record<string,number>).map(a=><div className={`achievement ${a.unlocked?'unlocked':''}`} key={a.id}><span className="achievement-medal"><Medal size={24}/></span><strong>{a.name}</strong><p>{a.detail}</p><span className="tiny">{a.unlocked?'Unlocked':`${Math.min(a.value,a.target)} / ${a.target}`}</span></div>)}</div>;
@@ -51,7 +52,7 @@ export function SessionList({player}:{player:PlayerSummary}){return player.recen
 export function Activity({player}:{player:PlayerSummary}){const now=new Date();const dates=Array.from({length:14},(_,i)=>{const d=new Date(now);d.setUTCDate(d.getUTCDate()-13+i);return d.toISOString().slice(0,10);});const maximum=Math.max(1,...player.activity.map(a=>a.games));return <div><div className="activity-chart" role="img" aria-label={`Last 14 days: ${player.activity.reduce((n,a)=>n+a.games,0)} completed runs`}>{dates.map(day=>{const n=player.activity.find(a=>a.day===day)?.games??0;return <div key={day} title={`${day}: ${n} runs`}><span style={{height:`${Math.max(4,n/maximum*100)}%`}} className={n?'has-activity':''}/><small>{new Date(day+'T00:00:00Z').getUTCDate()}</small></div>;})}</div><p className="tiny muted">Completed runs · last 14 days · UTC</p></div>;}
 export class ErrorBoundary extends Component<{children:ReactNode},{failed:boolean}>{
   state={failed:false};static getDerivedStateFromError(){return {failed:true};}
-  componentDidCatch(){window.dispatchEvent(new CustomEvent('dopamine:error',{detail:{source:'render'}}));}
+  componentDidCatch(error:Error){reportError(error,{source:'render'});}
   render(){return this.state.failed?<div className="page"><Empty title="Something interrupted your session." detail="Reload the page to get back to your games." action={<button className="button" onClick={()=>window.location.reload()}>Reload</button>}/></div>:this.props.children;}
 }
 

@@ -47,6 +47,7 @@ export function practiceRound(mode: GameMode, score: number): { challenge: Chall
   return {challenge,expected};
 }
 export function answerMatches(mode:GameMode, answer:Answer, expected:Answer) {
+  if(mode==='quick-reflex' && answer && typeof answer==='object' && 'pick' in answer) return answer.pick===expected && (answer.ms===undefined || answer.ms>=100);
   if(mode==='freeze-frame' && Array.isArray(answer) && Array.isArray(expected)) return JSON.stringify([...answer].sort((a,b)=>a-b))===JSON.stringify([...expected].sort((a,b)=>a-b));
   return JSON.stringify(answer)===JSON.stringify(expected);
 }

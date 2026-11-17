@@ -123,7 +123,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      start_game: { Args: { p_mode: string; p_request: string }; Returns: string }
+      start_game: { Args: { p_mode: string; p_request: string; p_kind?: string; p_challenge?: string | null }; Returns: string }
+      create_challenge: { Args: { p_score: string }; Returns: string }
+      get_challenge: { Args: { p_slug: string }; Returns: Json }
+      get_daily: { Args: { p_offset?: number }; Returns: Json }
       get_game_round: { Args: { p_session: string }; Returns: Json }
       answer_round: { Args: { p_session: string; p_round: number; p_answer: Json }; Returns: Json }
       abandon_game: { Args: { p_session: string }; Returns: undefined }

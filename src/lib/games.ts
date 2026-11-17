@@ -18,10 +18,20 @@ export interface Challenge {
   size?: number; cells?: number[]; sequence?: number[]; cards?: number[];
   target?: number; options?: string[]; palette?: string[]; word?: string; interval_ms?: number;
 }
-export type Answer = number | number[] | string | { timeout?: boolean; quit?: boolean };
+export type ReflexAnswer = { pick: number; ms?: number };
+export type Answer = number | number[] | string | ReflexAnswer | { timeout?: boolean; quit?: boolean };
+export type RunKind = 'practice' | 'standard' | 'daily' | 'challenge';
 export interface GameResult {
   id: string; game_mode: GameMode; score: number; duration_ms: number;
-  accuracy: number; xp_earned: number; challenge_bonus: number; personal_best: boolean;
+  xp_earned: number; challenge_bonus: number; personal_best: boolean;
   previous_best: number; created_at: string; verified: boolean;
+  best_ms?: number | null; avg_ms?: number | null; previous_best_ms?: number | null;
+  kind?: 'standard' | 'daily' | 'daily_replay' | 'challenge'; daily_number?: number | null; flagged?: boolean;
 }
+/** Games whose headline number is a reaction time rather than rounds cleared. */
+export const timedGames: readonly string[] = ['quick-reflex'];
+export const gameSlugs: Record<GameMode, string> = {
+  'classic': 'color-memory-test', 'freeze-frame': 'visual-memory-test', 'reverse-sequence': 'reverse-sequence-memory-test',
+  'quick-reflex': 'reaction-time-test', 'trail-tracker': 'path-memory-test', 'palette-recall': 'color-perception-test', 'speed-typist': 'typing-speed-test',
+};
 export interface RoundProps { challenge: Challenge; onAnswer: (answer: Answer) => void; disabled?: boolean }

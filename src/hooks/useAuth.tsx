@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { backendConfigured, supabase } from '@/integrations/supabase/client';
+import { identify } from '@/lib/analytics';
 
 type AuthState = { session: Session | null; loading: boolean; error: boolean };
 const AuthContext = createContext<AuthState>({session:null,loading:true,error:false});
@@ -14,7 +15,7 @@ export function AuthProvider({children}:{children:ReactNode}) {
     const apply=(session:Session|null,error=false)=>{
       if(!active)return;
       // Clear private cache before a new identity renders, never during its fetch.
-      if(identity!==session?.user.id){cache.clear();identity=session?.user.id;}
+      if(identity!==session?.user.id){cache.clear();identity=session?.user.id;identify(session?.user.id??null,{anonymous:session?.user.is_anonymous??false});}
       setState({session,loading:false,error});
     };
     const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{

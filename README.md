@@ -1,122 +1,69 @@
-# Dopamine Rush - Memory Game
+# Dopamine Rush
 
-A challenging memory game built with React, TypeScript, and Supabase. Test your memory and concentration skills in this addictive game where one mistake resets everything!
+Quick, server-verified brain and reflex games you can challenge friends on. React 18 + Vite + TypeScript on the front end, Supabase (Postgres RPCs, Auth) on the back end, deployed on Vercel.
 
-## 🎮 Features
+Live: https://dopamine-rush.vercel.app
 
-- **Memory Challenge**: Remember the sequence of colored cards
-- **Progressive Difficulty**: More cards appear as you advance
-- **Top Scores**: See each player's best score per game mode
-- **User Profiles**: Track your progress and statistics
-- **Responsive Design**: Play on desktop or mobile devices
+## What's in it
 
-## 🚀 Getting Started
+- **7 games**: Quick Reflex (reaction time in ms), Classic Memory, Freeze Frame, Reverse Sequence, Trail Tracker, Palette Recall, Speed Typist.
+- **Server-verified runs**: every round is generated and checked in the database (`start_game`, `get_game_round`, `answer_round`). The client never sees the answer, cannot write scores, and implausibly fast runs are flagged and kept off leaderboards.
+- **Guest play that counts**: guests get a Supabase anonymous session, so their runs are verified too. Adding an email later keeps every run.
+- **Challenge links** (`/c/:slug`): every verified run can be sent as a link that replays the exact same rounds. Link previews show a generated score card.
+- **Daily challenge** (`/daily`): numbered, same rounds for everyone, first attempt counts, shareable result grid.
+- **Progression**: XP and levels, day streaks, achievements, personal bests, period leaderboards.
+- **SEO**: pre-rendered landing pages per game (`/play/reaction-time-test`, …), sitemap, per-page titles and social tags.
+- **Analytics**: one event layer (`src/lib/analytics.ts`) sending to PostHog when a key is configured.
 
-### Prerequisites
+## Getting started
 
-- Node.js 22 or higher
-- npm or yarn
+Requirements: Node.js 22+.
 
-### Installation
-
-1. Clone the repository:
-```bash
-git clone <your-repo-url>
-cd dopamine-rush-remastered
-```
-
-2. Install dependencies:
 ```bash
 npm install
+cp .env.example .env   # add your Supabase URL and publishable key
+npm run dev            # http://localhost:8080
 ```
 
-3. Set up environment variables:
-Copy `.env.example` to `.env` and add your Supabase project URL and publishable key:
-```env
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
+Practice mode works without any backend. Scored runs, challenges and the daily challenge need Supabase.
+
+## Environment variables
+
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL` | client + edge functions | Supabase project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | client + edge functions | Public (anon/publishable) key |
+| `VITE_SITE_URL` | client + build | Canonical URL used in share links and the sitemap |
+| `VITE_POSTHOG_KEY` / `VITE_POSTHOG_HOST` | client | Optional analytics and error reporting; empty disables it |
+
+## Scripts
+
+- `npm run dev` – development server
+- `npm run build` – Vite build, then `scripts/prerender.mjs` writes landing pages, `404.html` and `sitemap.xml`
+- `npm run typecheck` – app and edge-function types
+- `npm run lint` – ESLint
+- `npm test` – unit, UI and database tests (the database suite runs every migration in PGlite)
+
+## Project layout
+
 ```
-
-4. Start the development server:
-```bash
-npm run dev
-```
-
-5. Open your browser at the URL printed by Vite (port 8080 by default).
-
-## 🛠️ Technologies Used
-
-- **Frontend**: React 18, TypeScript, Vite
-- **Styling**: Tailwind CSS, shadcn/ui components
-- **Animations**: Framer Motion
-- **Backend**: Supabase (PostgreSQL, Auth, Real-time)
-- **Deployment**: Vercel/Netlify ready
-
-## 🎯 How to Play
-
-1. **Start the Game**: Click "Start Game" to begin
-2. **Memorize**: Watch the cards flash in sequence
-3. **Recall**: Click the cards in the same order
-4. **Advance**: Each correct answer adds a point and increases difficulty
-5. **Compare**: Sign in to save your scores and view top attempts
-
-## 📊 Game Mechanics
-
-- **Scoring**: 1 point per correct answer
-- **Streaks**: Build up streaks for bonus points
-- **Difficulty**: More cards appear as your score increases
-- **Memory Time**: Time to memorize decreases with difficulty
-
-## 🔧 Development
-
-### Project Structure
-```
+api/            Vercel edge functions: og.ts (score-card images), challenge.ts (challenge link previews)
+seo/            Page titles/descriptions and the meta injector shared by the build and the edge
+scripts/        prerender.mjs (post-build static pages)
 src/
-├── components/     # Reusable UI components
-├── pages/         # Page components
-├── hooks/         # Custom React hooks
-├── integrations/  # External service integrations
-└── lib/          # Utility functions
+  components/   game renderers (games/), platform shell, a few UI primitives
+  hooks/        auth, player, settings
+  lib/          api (RPC client), analytics, share, games, practice, progression
+  pages/        routes: Index, Library, Game, Daily, ChallengeLink, Leaderboard, Profile, …
+supabase/migrations/   schema and RPCs, applied in order
+tests/          vitest suites
 ```
 
-### Available Scripts
+## Deploying
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run typecheck` - Check TypeScript
+1. Apply new migrations in `supabase/migrations` to the Supabase project (`supabase db push`, or paste them into the SQL editor in order).
+2. In Supabase → Authentication → Providers, enable **Anonymous sign-ins** (guest scored play), and add your site URL to the redirect allow list.
+3. Set the environment variables above in Vercel for Production and Preview.
+4. Push; CI runs typecheck, lint, tests and build.
 
-## 🚀 Deployment
-
-### Vercel (Recommended)
-1. Push your code to GitHub
-2. Connect your repository to Vercel
-3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the Vercel environment
-4. Apply pending migrations in `supabase/migrations` to the intended Supabase project, review grants and RLS, and test a signed-in save and anonymous leaderboard load
-5. Deploy after `npm run typecheck`, `npm run lint`, and `npm run build` pass
-
-Score submissions still come from the browser. The SQL constraints reject malformed values, but they cannot prove a player completed a game. Do not use these scores for prizes or other competitive decisions until challenge generation and scoring are verified by a trusted server.
-
-### Netlify
-1. Build the project: `npm run build`
-2. Upload the `dist` folder to Netlify
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Commit your changes: `git commit -m 'Add feature'`
-4. Push to the branch: `git push origin feature-name`
-5. Submit a pull request
-
-## 📝 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## 🎉 Acknowledgments
-
-- Built with React and TypeScript
-- Styled with Tailwind CSS
-- Powered by Supabase
-- Icons from Lucide React
+Leaderboards are server-checked with plausibility flags, but a determined script can still read a memory round it is shown. Don't attach prizes to these boards.

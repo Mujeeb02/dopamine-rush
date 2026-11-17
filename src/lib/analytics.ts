@@ -62,10 +62,36 @@ export function track(event: EventName, props: Props = {}) {
 export function pageview(path: string) { run(c => c.capture('$pageview', { path })); }
 export function identify(userId: string | null, props: Props = {}) {
   run(c => (userId ? c.identify(userId, props) : c.reset()));
+  withSentry(s => s.setUser(userId ? { id: userId } : null));
 }
 export function reportError(error: unknown, context: Props = {}) {
   run(c => c.captureException(error, context));
+  withSentry(s => s.captureException(error, { tags: { source: String(context.source ?? 'app') }, extra: context }));
   if (import.meta.env.DEV) console.error('[error]', error, context);
+}
+
+// ── Error tracking ──
+// Sentry also loads lazily, and only when VITE_SENTRY_DSN is set. Its own global
+// handlers are off: every error reaches it through reportError, so nothing is sent twice.
+type SentryClient = typeof import('@sentry/react');
+const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+const sentryQueue: Array<(s: SentryClient) => void> = [];
+let sentry: SentryClient | null = null;
+let sentryLoading = false;
+function withSentry(fn: (s: SentryClient) => void) {
+  if (!dsn) return;
+  if (sentry) { try { fn(sentry); } catch { /* Reporting must never break play. */ } return; }
+  sentryQueue.push(fn);
+  if (sentryLoading) return;
+  sentryLoading = true;
+  void import('@sentry/react').then(mod => {
+    mod.init({
+      dsn, environment: import.meta.env.MODE, tracesSampleRate: 0,
+      integrations: defaults => defaults.filter(i => i.name !== 'GlobalHandlers'),
+    });
+    sentry = mod;
+    sentryQueue.splice(0).forEach(withSentry);
+  }).catch(() => { sentryLoading = false; });
 }
 
 let started = false;

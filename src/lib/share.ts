@@ -1,13 +1,15 @@
-import { gameById, timedGames, type GameMode, type GameResult } from './games';
+import { formatScore, gameById, timedGames, type GameMode, type GameResult } from './games';
 import { track } from './analytics';
 
 export const siteUrl = ((import.meta.env.VITE_SITE_URL as string | undefined) || (typeof window !== 'undefined' ? window.location.origin : 'https://dopamine-rush.vercel.app')).replace(/\/$/, '');
 export const challengeUrl = (slug: string) => `${siteUrl}/c/${slug}`;
 export const dailyUrl = () => `${siteUrl}/daily`;
 
-/** The one number a result is about: reaction time for timed games, rounds for the rest. */
+/** The one number a result is about: reaction time, cells, words per minute or rounds. */
 export function headlineNumber(mode: GameMode, r: Pick<GameResult, 'score' | 'best_ms'>) {
   if (timedGames.includes(mode) && r.best_ms) return { value: `${r.best_ms} ms`, label: 'best reaction' };
+  if (mode === 'freeze-frame') return { value: formatScore(mode, r.score), label: 'recalled' };
+  if (mode === 'speed-typist') return { value: formatScore(mode, r.score), label: 'typing speed' };
   return { value: String(r.score), label: r.score === 1 ? 'round cleared' : 'rounds cleared' };
 }
 
@@ -17,11 +19,15 @@ export function resultGrid(score: number) {
   return '🟩'.repeat(shown) + (score > shown ? ` +${score - shown}` : '') + '🟥';
 }
 
-export function shareText(mode: GameMode, r: Pick<GameResult, 'score' | 'best_ms' | 'daily_number'>, opts: { challenge?: boolean; against?: string } = {}) {
+export function shareText(mode: GameMode, r: Pick<GameResult, 'score' | 'best_ms' | 'daily_number'> & Partial<Pick<GameResult, 'rounds' | 'accuracy'>>, opts: { challenge?: boolean; against?: string } = {}) {
   const game = gameById(mode)?.name ?? 'Dopamine Rush';
   const head = headlineNumber(mode, r);
   if (r.daily_number != null) {
-    return `Dopamine Rush #${r.daily_number} ⚡ ${game}\n${resultGrid(r.score)} ${r.score} ${r.score === 1 ? 'round' : 'rounds'}${r.best_ms ? ` · ${r.best_ms} ms` : ''}`;
+    // A sprint has no rounds to draw, so it shares its number on its own.
+    if (mode === 'speed-typist') return `Dopamine Rush #${r.daily_number} ⚡ ${game}\n⌨️ ${head.value}${r.accuracy != null ? ` · ${r.accuracy}% accuracy` : ''}`;
+    const rounds = r.rounds ?? r.score;
+    const extra = mode === 'freeze-frame' ? ` · ${head.value}` : r.best_ms ? ` · ${r.best_ms} ms` : '';
+    return `Dopamine Rush #${r.daily_number} ⚡ ${game}\n${resultGrid(rounds)} ${rounds} ${rounds === 1 ? 'round' : 'rounds'}${extra}`;
   }
   if (opts.against) return `I just took on ${opts.against} in ${game}: ${head.value} ${head.label}. Your turn ⚡`;
   return opts.challenge ? `${head.value} ${head.label} in ${game}. Think you can beat me? ⚡` : `${head.value} ${head.label} in ${game} on Dopamine Rush ⚡`;

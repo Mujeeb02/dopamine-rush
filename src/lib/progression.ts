@@ -25,7 +25,7 @@ export const achievementRules = [
   { id: 'five', name: 'In the zone', detail: 'Clear 5 rounds in one run', target: 5, field: 'best' },
   { id: 'ten', name: 'Double digits', detail: 'Clear 10 rounds in one run', target: 10, field: 'best' },
   { id: 'explorer', name: 'All-rounder', detail: 'Complete all 7 games', target: 7, field: 'modes' },
-  { id: 'streak', name: 'Keep the flame', detail: 'Play on 3 consecutive UTC days', target: 3, field: 'longest_streak' },
+  { id: 'streak', name: 'Keep the flame', detail: 'Play the daily challenge 3 days in a row', target: 3, field: 'longest_streak' },
   { id: 'regular', name: 'Making a habit', detail: 'Finish 25 scored runs', target: 25, field: 'games' },
 ] as const;
 export function achievements(stats: Record<string, number>) {

@@ -10,7 +10,9 @@ export async function GET(req: Request) {
   const c = slug ? await rpc<PublicChallenge>('get_challenge', { p_slug: slug }).catch(() => null) : null;
   const page = gamePages.find(g => g.mode === c?.game_mode);
   if (!c || !page) return new Response(shell, { headers: { 'content-type': 'text/html; charset=utf-8' } });
-  const value = c.game_mode === 'quick-reflex' && c.creator.best_ms ? `${c.creator.best_ms} ms` : `${c.creator.score} ${c.creator.score === 1 ? 'round' : 'rounds'}`;
+  const n = c.creator.score;
+  const value = c.game_mode === 'quick-reflex' && c.creator.best_ms ? `${c.creator.best_ms} ms`
+    : c.game_mode === 'freeze-frame' ? `${n} ${n === 1 ? 'cell' : 'cells'}` : c.game_mode === 'speed-typist' ? `${n} WPM` : `${n} ${n === 1 ? 'round' : 'rounds'}`;
   const html = injectMeta(shell, {
     title: `Can you beat ${c.creator.username}? ${value} in ${page.name}`,
     description: `${c.creator.username} challenged you on Dopamine Rush. Same rounds, no sign-up. Takes under a minute.`,

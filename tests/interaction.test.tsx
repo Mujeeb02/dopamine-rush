@@ -34,10 +34,18 @@ describe('game controls and timer cleanup',()=>{
     vi.useFakeTimers();const answer=vi.fn();render(<QuickReflex challenge={{mode:'quick-reflex',round:0,reveal_ms:0,limit_ms:3000,sequence:[0,1,2],target:2,interval_ms:1000}} onAnswer={answer}/>);
     act(()=>vi.advanceTimersByTime(500));fireEvent.keyDown(window,{code:'Space'});expect(answer).toHaveBeenCalledWith({pick:0});
   });
-  it('accepts exact typing and rejects a partial or mismatched word',()=>{
-    const answer=vi.fn();render(<SpeedTypist challenge={{mode:'speed-typist',round:0,reveal_ms:0,limit_ms:5000,word:'focus'}} onAnswer={answer}/>);
-    fireEvent.change(screen.getByLabelText('Type: focus'),{target:{value:'Focus'}});expect(answer).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText('Type: focus'),{target:{value:'focus'}});expect(answer).toHaveBeenCalledWith('focus');
+  it('runs a typing sprint, moving on with Space, and sends everything typed when time is up',()=>{
+    vi.useFakeTimers({toFake:['setInterval','clearInterval','setTimeout','clearTimeout','Date','performance']});
+    const answer=vi.fn();const view=render(<SpeedTypist challenge={{mode:'speed-typist',round:0,reveal_ms:0,limit_ms:30000,duration_ms:30000,words:['focus','drift','spark']}} onAnswer={answer}/>);
+    const box=()=>screen.getByLabelText(/Type the next word/) as HTMLInputElement;
+    fireEvent.change(box(),{target:{value:'focus '}});expect(box().value).toBe('');
+    expect(screen.getByLabelText('Type the next word: drift')).toBeTruthy();
+    fireEvent.change(box(),{target:{value:'drfit '}});fireEvent.change(box(),{target:{value:'spa'}});
+    act(()=>vi.advanceTimersByTime(29000));expect(answer).not.toHaveBeenCalled();
+    act(()=>vi.advanceTimersByTime(1200));
+    expect(answer).toHaveBeenCalledTimes(1);expect(answer).toHaveBeenCalledWith({typed:'focus drfit spa'});
+    expect(box().disabled).toBe(true);
+    view.unmount();expect(vi.getTimerCount()).toBe(0);
   });
 });
 describe('shared authentication state',()=>{

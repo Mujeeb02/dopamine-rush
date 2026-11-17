@@ -1,7 +1,15 @@
 import { patternGenerator } from './game-logic/PatternGenerator';
 import { colorTheory } from './game-logic/ColorTheory';
-import { wordGenerator } from './game-logic/WordGenerator';
 import type { Answer, Challenge, GameMode, GameResult } from './games';
+
+/** The same common words the server draws Speed Typist sprints from (_make_challenge). */
+export const sprintWords = ['the','be','to','of','and','in','that','have','it','for','not','on','with','he','as','you','do','at',
+  'this','but','his','by','from','they','we','say','her','she','or','an','will','my','one','all','would','there',
+  'their','what','so','up','out','if','about','who','get','which','go','me','when','make','can','like','time','no',
+  'just','him','know','take','people','into','year','your','good','some','could','them','see','other','than','then',
+  'now','look','only','come','its','over','think','also','back','after','use','two','how','our','work','first',
+  'well','way','even','new','want','because','any','these','give','day','most','us','great','small','light','fast',
+  'quick','brain','focus','sharp','move','play','game','score','round','again','never','always','right','left'];
 
 const shuffle = <T,>(items:T[]) => { const a=[...items]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
 export function practiceRound(mode: GameMode, score: number): { challenge: Challenge; expected: Answer } {
@@ -41,14 +49,14 @@ export function practiceRound(mode: GameMode, score: number): { challenge: Chall
       challenge.sequence.push(challenge.target); challenge.interval_ms=Math.max(450,1000-score*25);
       challenge.limit_ms=(targetAt+1)*challenge.interval_ms; expected=targetAt; break;
     }
-    case 'speed-typist': challenge.word=wordGenerator.generateWord(Math.min(score*2,100)); challenge.limit_ms=Math.max(2200,challenge.word.length*600-score*80); expected=challenge.word; break;
+    case 'speed-typist': challenge.words=Array.from({length:150},()=>sprintWords[Math.floor(Math.random()*sprintWords.length)]); challenge.duration_ms=30000; challenge.limit_ms=30000; expected=challenge.words; break;
   }
   if(mode!=='quick-reflex' && mode!=='speed-typist') challenge.limit_ms+=challenge.reveal_ms;
   return {challenge,expected};
 }
 export function answerMatches(mode:GameMode, answer:Answer, expected:Answer) {
   if(mode==='quick-reflex' && answer && typeof answer==='object' && 'pick' in answer) return answer.pick===expected && (answer.ms===undefined || answer.ms>=100);
-  if(mode==='freeze-frame' && Array.isArray(answer) && Array.isArray(expected)) return JSON.stringify([...answer].sort((a,b)=>a-b))===JSON.stringify([...expected].sort((a,b)=>a-b));
+  if(mode==='freeze-frame' && Array.isArray(answer) && Array.isArray(expected)) return JSON.stringify([...answer as number[]].sort((a,b)=>a-b))===JSON.stringify([...expected as number[]].sort((a,b)=>a-b));
   return JSON.stringify(answer)===JSON.stringify(expected);
 }
 const key='dopamine-practice-history';

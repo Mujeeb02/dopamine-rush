@@ -3,8 +3,10 @@ import type { Answer, Challenge, GameMode, GameResult } from './games';
 export interface PlayerSummary {
   id:string;username:string;joined:string;onboarded:boolean;games:number;best:number;xp:number;play_ms:number;
   modes:number;current_streak:number;longest_streak:number;legacy_games:number;daily_completed:boolean;daily_progress:number;
-  records:{game_mode:GameMode;best:number;best_ms?:number|null;games:number;average:number}[];
-  recent:{id:string;game_mode:GameMode;score:number;created_at:string;duration_ms:number;xp_earned:number;verified:boolean;best_ms?:number|null;kind?:string}[];
+  /** Freezes held (0 or 1), and the recent days a freeze covered. */
+  streak_freezes?:number;frozen_days?:string[];
+  records:{game_mode:GameMode;best:number;best_ms?:number|null;accuracy?:number|null;games:number;average:number}[];
+  recent:{id:string;game_mode:GameMode;score:number;created_at:string;duration_ms:number;xp_earned:number;verified:boolean;best_ms?:number|null;kind?:string;rounds?:number|null;accuracy?:number|null}[];
   activity:{day:string;games:number}[];challenges:{challenge_day:string;reward:number}[];
 }
 export interface LeaderboardData {total:number;my_rank:number|null;entries:{user_id:string;username:string;score:number;best_ms?:number|null;place:number;created_at:string}[]}
@@ -13,7 +15,11 @@ export interface ChallengeData {slug:string;game_mode:GameMode;expired:boolean;c
   entries:{user_id:string;username:string;score:number;best_ms:number|null;creator:boolean}[]}
 export interface DailyData {day:string;number:number;game_mode:GameMode;players:number;attempted:boolean;
   mine:{score:number;best_ms:number|null;place:number}|null;entries:{user_id:string;username:string;score:number;best_ms:number|null;place:number}[]}
-export interface AnswerResponse {correct:boolean;completed:boolean;score?:number;ms?:number|null;result?:GameResult}
+export interface AnswerResponse {correct:boolean;completed:boolean;score?:number;ms?:number|null;result?:GameResult;
+  /** Freeze Frame: cells so far, and the pattern shown back after a miss. */
+  cells?:number;life_used?:boolean;pattern?:number[];hit?:number;wrong?:number;
+  /** Speed Typist: the sprint's speed and accuracy. */
+  wpm?:number;accuracy?:number|null}
 export class GuestUnavailable extends Error{constructor(){super('Guest play is not available right now. Practice still works, or sign in to save scores.');}}
 function requireBackend(){if(!backendConfigured)throw new Error('Online play is not configured. Practice is available.');}
 

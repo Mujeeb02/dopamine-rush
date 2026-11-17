@@ -18,7 +18,7 @@ export const gamePages = [
   { mode: 'freeze-frame', slug: 'visual-memory-test', name: 'Freeze Frame',
     title: 'Visual Memory Test — remember the pattern | Dopamine Rush',
     description: 'A grid lights up, then goes dark. Rebuild the pattern from memory. Grids grow and time shrinks as you go. Free browser game.',
-    how: ['Memorise the lit cells.', 'Select the same cells once they hide.', 'Press Check pattern. Patterns get bigger each round.'],
+    how: ['Memorise the lit cells.', 'Select the same cells once they hide, then press Check pattern.', 'Every right cell scores and a wrong pick cancels one. Your first miss shows you the pattern; the second ends the run.'],
     faq: [['How many cells can people remember?', 'It varies a lot. Track your own best and try again tomorrow.']] },
   { mode: 'classic', slug: 'color-memory-test', name: 'Classic Memory',
     title: 'Colour Memory Test — where was that colour? | Dopamine Rush',
@@ -37,9 +37,10 @@ export const gamePages = [
     description: 'Memorise a row of close shades, then pick the one that was in a given position. A test of colour perception and memory.',
     how: ['Memorise the numbered shades.', 'Pick the shade that was in the requested position.'], faq: [] },
   { mode: 'speed-typist', slug: 'typing-speed-test', name: 'Speed Typist',
-    title: 'Typing Speed Test — type before the timer | Dopamine Rush',
-    description: 'Type each word exactly before time runs out. Words get longer and the clock gets tighter. Free typing game in your browser.',
-    how: ['Type the word shown, exactly.', 'Each correct word starts a harder round.'], faq: [] },
+    title: 'Typing Speed Test — 30-second WPM test | Dopamine Rush',
+    description: 'Type as many words as you can in 30 seconds and get your words per minute and accuracy. Free typing speed test in your browser, no sign-up.',
+    how: ['Type the words in order.', 'Press Space after each word. Only exact words count.', 'After 30 seconds you get your WPM and accuracy.'],
+    faq: [['How is WPM calculated?', 'Every five characters typed correctly, including the space after each word, count as one word. That total over 30 seconds is doubled to give words per minute.']] },
 ];
 
 export const staticPages = [

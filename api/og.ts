@@ -23,8 +23,10 @@ export default async function handler(req: Request) {
     if (c) {
       mode = c.game_mode;
       const timed = c.game_mode === 'quick-reflex' && c.creator.best_ms;
-      value = timed ? `${c.creator.best_ms} ms` : String(c.creator.score);
-      label = timed ? 'best reaction' : c.creator.score === 1 ? 'round cleared' : 'rounds cleared';
+      const n = c.creator.score;
+      value = timed ? `${c.creator.best_ms} ms` : c.game_mode === 'speed-typist' ? `${n} WPM` : String(n);
+      label = timed ? 'best reaction' : c.game_mode === 'freeze-frame' ? (n === 1 ? 'cell recalled' : 'cells recalled')
+        : c.game_mode === 'speed-typist' ? 'typing speed' : n === 1 ? 'round cleared' : 'rounds cleared';
       byline = `${c.creator.username} challenges you`;
     }
   }

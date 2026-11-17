@@ -23,7 +23,7 @@ export default function Daily(){
   const d=query.data;
   const intro=<><span className="daily-number"><CalendarDays size={14}/> DAILY{d?` #${d.number}`:''} · {fallback.day}</span>
     <h1>{game.name}<span className="accent-dot">.</span></h1>
-    <p className="lead">Everyone gets the same rounds today. Your first run is the one that counts on today’s board, so make it a good one. Clear 5 rounds for +{fallback.reward} XP.</p>
+    <p className="lead">Everyone gets the same rounds today. Your first run is the one that counts on today’s board and keeps your streak going, so make it a good one. Score on it for +{fallback.reward} XP.</p>
     {d?.mine&&<p className="tiny">Today you scored {headlineNumber(game.id,d.mine).value} · #{d.mine.place} of {d.players}. Replays are for fun and don’t change your place.</p>}</>;
   return <>
     {backendConfigured?<GameRun key={`${d?.day}-${game.id}`} game={game} kind="daily" intro={intro}/>:<div className="page"><Empty title="Daily challenge needs the online service." detail="Practice is still available." action={<Link className="button" to={`/game/${game.id}`}>Practice {game.name}</Link>}/></div>}
